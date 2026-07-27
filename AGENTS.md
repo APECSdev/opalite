@@ -1,8 +1,9 @@
 # 👥 AGENTS & ORCHESTRATION
 
 ## Project: Opalite Love
-**Network:** Midnight Blockchain
+**Network:** Midnight Blockchain (Preview)
 **Program:** Rise In - New Moon to Full
+**Repo:** github.com/APECSdev/opalite-love (PRIVATE)
 
 ---
 
@@ -13,5 +14,5 @@
 ---
 
 ## 🤖 AI Agents
-### ChatGPT / Claude (UI & Orchestration Assistant)
-- **Role:** Scaffolding, writing privacy-focused copy, and deterministic code refactoring.
+### Claude (UI & Orchestration Assistant)
+- **Role:** Scaffolding, deterministic code refactoring, and deployment troubleshooting.
