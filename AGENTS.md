@@ -1,7 +1,7 @@
 # 👥 AGENTS & ORCHESTRATION
 
 ## Project: Opalite Love
-**Network:** Midnight Blockchain (Preview)
+**Network:** Midnight Blockchain (Local + Preview)
 **Program:** Rise In - New Moon to Full
 **Repo:** github.com/APECSdev/opalite-love (PRIVATE)
 
