@@ -1,0 +1,80 @@
+---
+import '../styles/global.css';
+---
+
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" initial-scale="1" />
+    <title>Opalite Love | Private Swipe Matching</title>
+</head>
+<body class="bg-slate-900 text-slate-100 antialiased">
+    
+    <!-- Navbar -->
+    <header class="absolute top-0 w-full z-10">
+        <nav class="container mx-auto px-6 py-4 flex justify-between items-center">
+            <a href="/" class="font-bold text-xl text-pink-500">Opalite.love</a>
+            <div class="hidden md:flex space-x-6">
+                <a href="#how" class="hover:text-pink-500 transition">How it Works</a>
+                <a href="#privacy" class="hover:text-pink-500 transition">Privacy</a>
+                <a href="#download" class="hover:text-pink-500 transition">Download</a>
+            </div>
+        </nav>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="h-screen flex items-center justify-center text-center bg-slate-900 relative overflow-hidden">
+        <div class="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(236,72,153,0.15)_0,rgba(15,23,42,1)_65%)]"></div>
+        
+        <div class="relative z-10 max-w-3xl mx-auto px-6">
+            <span class="inline-block px-3 py-1 mb-6 text-xs font-semibold text-pink-400 bg-pink-900/50 rounded-full border border-pink-800">
+                Built on Midnight Network
+            </span>
+            <h1 class="text-4xl md:text-6xl font-extrabold tracking-tight mb-6">
+                Swipe right, <span class="text-pink-500">reveal later</span>.
+            </h1>
+            <p class="text-lg text-slate-400 mb-10">
+                A privacy-first dating mobile app where you swipe to find a match. Your choices and profile details remain private through Zero-Knowledge proofs—until you both swipe right.
+            </p>
+            <div class="flex flex-col md:flex-row justify-center gap-4">
+                <a href="#download" class="px-8 py-3 bg-pink-600 rounded-lg font-semibold hover:bg-pink-500 transition">Download Android APK</a>
+                <a href="#ios" class="px-8 py-3 border border-slate-600 rounded-lg font-semibold hover:border-slate-400 hover:bg-slate-800 transition">Join iOS Waitlist</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- How it Works Section -->
+    <section id="how" class="py-20 bg-slate-800">
+        <div class="container mx-auto px-6 text-center">
+            <h2 class="text-3xl font-bold mb-12">Privacy-Preserving Matchmaking</h2>
+            <div class="grid md:grid-cols-3 gap-8 text-left">
+                <div class="p-6 border-l-2 border-pink-600">
+                    <h3 class="text-xl font-bold text-pink-500 mb-2">1. Swipe Privately</h3>
+                    <p class="text-slate-400">Swipe left or right. Your choices are never broadcasted to the public blockchain, protecting your rejection and interest history.</p>
+                </div>
+                <div class="p-6 border-l-2 border-pink-600">
+                    <h3 class="text-xl font-bold text-pink-500 mb-2">2. Zero-Knowledge Matches</h3>
+                    <p class="text-slate-400">Our ZK circuit anonymously checks if both users swiped right. A match is proven without leaking who didn't match.</p>
+                </div>
+                <div class="p-6 border-l-2 border-pink-600">
+                    <h3 class="text-xl font-bold text-pink-500 mb-2">3. Mutual Reveals</h3>
+                    <p class="text-slate-400">Upon a verified mutual match, you receive a push notification, and profile details are selectively decrypted just for you two.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Download Section -->
+    <section id="download" class="py-20 bg-slate-900 text-center">
+        <h2 class="text-3xl font-bold mb-6">Get the App</h2>
+        <p class="text-slate-400 mb-10 max-w-xl mx-auto">Currently available for Android via direct APK download. Coming soon to F-Droid. iOS TestFlight access is coming soon!</p>
+        <a href="#" class="px-8 py-3 bg-pink-600 rounded-lg font-semibold hover:bg-pink-500 transition">Download Android APK</a>
+    </section>
+
+    <!-- Footer -->
+    <footer class="py-8 text-center bg-slate-950 border-t border-slate-800">
+        <p class="text-slate-500 text-sm">© 2024 Opalite Love. Built for the Rise In Midnight Hackathon.</p>
+    </footer>
+
+</body>
+</html>
