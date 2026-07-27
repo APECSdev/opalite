@@ -1,22 +1,26 @@
-## Development
+# 👥 AGENTS & ORCHESTRATION
 
-When starting the dev server, use background mode:
+## Project: Opalite Love
+**Repository:** `github.com/APECSdev/opalite-love` (Currently Private -> Public by EOW)
+**Domain:** https://opalite.love
+**Network:** Midnight Blockchain (Preprod)
+**Program:** Rise In - New Moon to Full
 
-```
-astro dev --background
-```
+---
 
-Manage the background server with `astro dev stop`, `astro dev status`, and `astro dev logs`.
+## 👨💻 Human Agents
 
-## Documentation
+### Shomari (Lead Developer & Architect)
+- **Role:** Overall architecture, Monorepo management, and Deployment.
+- **Tasks:** pnpm workspace setup, Vercel configuration, and final repo cleanup for public release.
 
-Full documentation: https://docs.astro.build
+---
 
-Consult these guides before working on related tasks:
+## 🤖 AI Agents
 
-- [Adding pages, dynamic routes, or middleware](https://docs.astro.build/en/guides/routing/)
-- [Working with Astro components](https://docs.astro.build/en/basics/astro-components/)
-- [Using React, Vue, Svelte, or other framework components](https://docs.astro.build/en/guides/framework-components/)
-- [Adding or managing content](https://docs.astro.build/en/guides/content-collections/)
-- [Adding styles or using Tailwind](https://docs.astro.build/en/guides/styling/)
-- [Supporting multiple languages](https://docs.astro.build/en/guides/internationalization/)
+### ChatGPT / Claude (UI & Orchestration Assistant)
+- **Role:** Scaffolding Astro + Tailwind landing page, writing privacy-focused copy, and responsive design.
+- **Tasks:** Complete the Hero section, Features, and Leaderboard UI integration.
+
+### GitHub Copilot (Code Completion)
+- **Role:** Assisting with React Native and Midnight contract boilerplate.
