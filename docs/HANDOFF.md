@@ -1,14 +1,22 @@
 # 🤝 HANDOFF DOCUMENT
 
-## 🚀 Project Status
-**Status:** Active Development — Switching to Official Standalone Local Devnet
-**Selected Idea:** Opalite — Private Dating on Midnight Network (Category: Other, PENDING REVIEW)
+## 🚨 CRITICAL FINDING: Official Midnight Examples Are Broken
+
+The official `midnightntwrk/midnight-hello-world` template does NOT work out of the box. Neither does the counter example in standalone mode without GHCR authentication.
 
 ---
 
-## 🔄 PIVOT: Starting Fresh with Official Midnight Examples
+## 🔴 ROOT CAUSE: Private GHCR Images
 
-We abandoned the broken DID System repo (by Kanasjnr) and are now starting from the **official** midnightntwrk examples to establish a working baseline, then we'll migrate our DID contracts to it.
+The Midnight wallet SDKs (`@midnight-ntwrk/wallet-sdk-*`) are compiled against Docker images in a **private** GitHub Container Registry (`ghcr.io/midnight-ntwrk/midnight-node:0.22.0`). The public Docker Hub images (`midnightntwrk/midnight-node:0.22.3`, `1.0.0`, etc.) are **different builds** and cause WebSocket `Abnormal Closure` errors during wallet sync.
+
+The `testkit-js` library's `LocalTestEnvironmentBuilder` / `runTestEnvironment` has GHCR authentication baked in internally. External `docker compose` cannot pull these images (unauthorized).
+
+---
+
+## 🟢 WHAT THE COUNTER EXAMPLE ACTUALLY DOES
+
+The counter example provides a `standalone.yml` compose file that uses `testcontainers` with internal GHCR auth — it does NOT pull images directly. The README says `npm run standalone` which calls `npm run standalone-ps` in `counter-cli/package.json`, which runs a CLI script that uses `LocalTestEnvironmentBuilder` from `@midnight-ntwrk/testkit-js`.
 
 ---
 
@@ -16,108 +24,79 @@ We abandoned the broken DID System repo (by Kanasjnr) and are now starting from 
 
 | Path | Purpose |
 |---|---|
-| `/Workspace/apecsdev/opalite-love` | Our project repo (pushed to GitHub) |
-| `/Workspace/apecsdev/midnight-hello-official` | **OFFICIAL** hello-world example — OUR NEW BASELINE |
-| `/Workspace/apecsdev/midnight-counter-official` | Official counter example (reference only) |
-| `/Workspace/apecsdev/Midnight-Privacy-Preserving-DID-System` | BROKEN DID system — ABANDONED |
-| `/Workspace/apecsdev/midnight-hello-world` | Old broken hello-world — ABANDONED |
+| `/Workspace/apecsdev/midnight-hello-official` | Our testbed (official hello-world template) |
+| `/Workspace/apecsdev/midnight-counter-official` | Counter reference (not installed, template only) |
+| `/Workspace/apecsdev/opalite-love` | Main project repo |
 
 ---
 
-## 🟢 WHAT WORKS (hello-official)
+## 📦 Current Dependencies Installed
 
-- **Docker environment** (`yarn env:up`) — all 3 services healthy:
-  - `midnight-node:1.0.0` on port 9944
-  - `indexer-standalone:4.3.3` on port 8088
-  - `proof-server:8.1.0` on port 6300
-- **Contract compiled:** `hello-world.compact` → `contracts/managed/hello-world/`
-  - 1 circuit: `storeMessage` (k=6, rows=26)
-- **Dependencies installed:** `yarn install` completed
+From `package.json` (individual wallet packages, NOT monolithic):
+- `@midnight-ntwrk/compact-runtime`: `0.16.0`
+- `@midnight-ntwrk/ledger-v8`: `8.0.3` (resolutions forced)
+- `@midnight-ntwrk/midnight-js-*`: `4.0.4`
+- `@midnight-ntwrk/testkit-js`: `4.0.4`
+- `@midnight-ntwrk/wallet-sdk-facade`: `3.0.0`
+- `@midnight-ntwrk/wallet-sdk-dust-wallet`: `3.0.0`
+- `@midnight-ntwrk/wallet-sdk-shielded`: `2.0.0`
+- `@midnight-ntwrk/wallet-sdk-unshielded-wallet`: `2.0.0`
 
 ---
 
-## 🔴 CURRENT BLOCKER: Node 1.0.0 WebSocket Incompatibility
+## 🔧 CURRENT BLOCKER: Wallet Sync WebSocket Abnormal Closure
 
 ### Symptom
-`yarn test:local` fails. Wallet sync gets `Abnormal Closure` on `ws://127.0.0.1:9944/` repeatedly.
+```
+API-WS: disconnected from ws://127.0.0.1:9944/: 1006:: Abnormal Closure
+Wallet.Sync: [object Object]
+```
+Happens repeatedly. Wallet never syncs.
 
-### Diagnosis
-- Node IS healthy (producing blocks, health endpoint returns OK)
-- `{"peers":0,"isSyncing":false,"shouldHavePeers":false}`
-- The wallet SDK (`@midnight-ntwrk/wallet-sdk@1.2.0`) can't maintain a WebSocket connection to `midnight-node:1.0.0`
-- The official counter example uses **older** images: `midnight-node:0.22.3` + `indexer-standalone:4.0.0`
+### What We've Tried
+| Attempt | Result |
+|---|---|
+| Node `1.0.0` (Docker Hub, original) | FAIL — Abnormal Closure |
+| Node `0.22.3` (Docker Hub) | FAIL — Abnormal Closure |
+| Node `0.22.5` (Docker Hub) | FAIL — Abnormal Closure |
+| Node `0.22.2` (Docker Hub) | FAIL — Abnormal Closure |
+| Monolithic `wallet-sdk@1.2.0` | FAIL — Abnormal Closure |
+| Individual wallet packages | FAIL — Abnormal Closure |
+| Node `ghcr.io/midnight-ntwrk/midnight-node:0.22.0` | FAIL — GHCR unauthorized on docker pull |
 
-### Version Comparison
-
-| Component | Official Counter (working) | Hello Official (BROKEN) |
-|---|---|---|
-| Node | `0.22.3` | `1.0.0` |
-| Indexer | `4.0.0` | `4.3.3` |
-| Proof Server | `8.0.3` | `8.1.0` |
-| Wallet SDK | — | `1.2.0` |
-
-### Likely Fix
-Change `compose.yml` to use the older images that match what the SDKs expect:
-```yaml
-node:
-  image: 'midnightntwrk/midnight-node:0.22.3'
-  # ...
-indexer:
-  image: 'midnightntwrk/indexer-standalone:4.0.0'
-  # ...
-proof-server:
-  image: 'midnightntwrk/proof-server:8.0.3'
+### What The Wallet SDK Actually Expects
+Found in `node_modules/@midnight-ntwrk/wallet-sdk-utilities/dist/testing/test-containers.js`:
+```js
+const container = new GenericContainer('ghcr.io/midnight-ntwrk/midnight-node:0.22.0')
 ```
 
 ---
 
-## 📋 Full Setup Commands (for fresh session)
+## 🎯 PATH FORWARD: Use LocalTestEnvironmentBuilder
 
-```bash
-# 1. Verify prerequisites
-docker --version # 28.1.1
-node --version # v24.14.0
-compact --version       # 0.5.1
+The counter example's `standalone.yml` references `LocalTestEnvironmentBuilder` which handles GHCR auth internally. We need to:
 
-# 2. Go to official example
-cd /Workspace/apecsdev/midnight-hello-official
+1. Rewrite `src/test/hw.test.ts` to use `LocalTestEnvironmentBuilder` from `@midnight-ntwrk/testkit-js` instead of the external compose.yml
+2. Stop using `yarn env:up` / `yarn env:down` — let testcontainers manage everything
+3. The test should spin up its own Docker containers with the correct GHCR images
 
-# 3. Ensure contract exists
-cat > contracts/hello-world.compact << 'EOC'
-pragma language_version 0.23;
+---
 
-export ledger message: Opaque<"string">;
+## 📋 State to Preserve
 
-export circuit storeMessage(newMessage: Opaque<"string">): [] {
-  message = disclose(newMessage);
-}
-EOC
-
-# 4. Compile
-yarn compile
-
-# 5. Edit compose.yml — change node image from 1.0.0 to 0.22.3,
-#    indexer from 4.3.3 to 4.0.0, proof-server from 8.1.0 to 8.0.3
-
-# 6. Start Docker environment
-yarn env:up
-
-# 7. Run test
-yarn test:local
-```
+- `contracts/hello-world.compact` — compiled successfully
+- `contracts/managed/hello-world/` — compiled output
+- `src/wallet.ts` — wallet provider using individual wallet packages
+- `src/providers.ts` — provider builder
+- `src/config.ts` — network configs
+- `contracts/index.ts` — contract wrapper
+- `compose.yml` — currently has Docker Hub images (won't be needed after migration)
+- `package.json` — current dependencies with individual wallet packages
+- `yarn.lock` — resolved lockfile
 
 ---
 
 ## 🎯 EXIT CRITERIA
-- `yarn test:local` passes both tests (Deploys contract + Stores Hello World!)
-- Local devnet fully functional
-- THEN: Migrate our DID contracts (did-registry, schema-registry, credential-issuer, proof-verifier) to this working baseline
-
----
-
-## 📝 Notes
-- The hello-world repo uses **local pre-funded wallets** (seed: `0000...0001`...`0003`)
-- No faucet needed on local network
-- `yarn env:up` / `yarn env:down` manage Docker
-- Container names: `midnight-hello-official-node-1`, `midnight-hello-official-proof-server-1`, `midnight-hello-official-indexer-1`
-- Port conflicts cleaned up: old `midnight-proof-server` and `midnight-hello-world-node` containers removed
+- `yarn test:local` passes both tests (Deploys contract + Stores message)
+- No WebSocket Abnormal Closure errors
+- Tests use LocalTestEnvironmentBuilder internally (no external compose dependency)

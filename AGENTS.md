@@ -1,18 +1,17 @@
 # 👥 AGENTS & ORCHESTRATION
 
-## Project: Opalite Love
-**Network:** Midnight Blockchain (Local + Preview)
-**Program:** Rise In - New Moon to Full
-**Repo:** github.com/APECSdev/opalite-love (PRIVATE)
+## Project: Opalite Love / Midnight Hello World
+**Repo:** /Workspace/apecsdev/midnight-hello-official
+**Status:** Official hello-world example DOES NOT WORK out of the box
 
 ---
 
 ## 👨💻 Human Agents
 ### Shomari (Lead Developer & Architect)
-- **Role:** Overall architecture, Monorepo management, and Deployment.
+- **Role:** Architecture, Monorepo management, Deployment
 
 ---
 
 ## 🤖 AI Agents
 ### Claude (UI & Orchestration Assistant)
-- **Role:** Scaffolding, deterministic code refactoring, and deployment troubleshooting.
+- **Role:** Debugging official Midnight examples, dependency resolution
