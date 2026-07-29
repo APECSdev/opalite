@@ -1,102 +1,146 @@
-# 🤝 HANDOFF DOCUMENT
+# HANDOFF — Midnight Builder Challenge (2025-07-29)
 
-## 🚨 CRITICAL FINDING: Official Midnight Examples Are Broken
+## ROOT CAUSES — TWO FOUND, ONE FIXED
 
-The official `midnightntwrk/midnight-hello-world` template does NOT work out of the box. Neither does the counter example in standalone mode without GHCR authentication.
+### CAUSE 1 (FIXED): Mullvad VPN Kill Switch Blocking Docker Bridge Traffic
 
----
+**Symptom:** Every connection to Docker published ports from the host failed with ECONNRESET / "socket hang up" / "Connection reset by peer". The wallet SDK could not sync. curl to the indexer returned empty reply. Raw Python sockets got ConnectionResetError.
 
-## 🔴 ROOT CAUSE: Private GHCR Images
+**Root cause:** Mullvad VPN installs nftables rules that reject all host-originated TCP not exiting via the `wg0-mullvad` WireGuard interface. Docker bridge networks (172.16.0.0/12) are not exempted by default. docker-proxy's upstream leg (host to container IP) was rejected, causing downstream RST to all clients.
 
-The Midnight wallet SDKs (`@midnight-ntwrk/wallet-sdk-*`) are compiled against Docker images in a **private** GitHub Container Registry (`ghcr.io/midnight-ntwrk/midnight-node:0.22.0`). The public Docker Hub images (`midnightntwrk/midnight-node:0.22.3`, `1.0.0`, etc.) are **different builds** and cause WebSocket `Abnormal Closure` errors during wallet sync.
+**Evidence:**
+- nftables ruleset showed: `oif "wg0-mullvad" accept` then blanket `reject` in both output and forward chains.
+- ufw inactive, firewalld inactive — Mullvad was the only firewall actor.
+- In-network curl (container to container on same Docker bridge) returned HTTP 405 — indexer healthy.
+- Host to published port: TCP connect succeeded, then RST.
+- Host to container bridge IP direct: Connection refused in 0ms.
+- `systemctl restart docker` did NOT fix it (rules belong to Mullvad, not Docker).
 
-The `testkit-js` library's `LocalTestEnvironmentBuilder` / `runTestEnvironment` has GHCR authentication baked in internally. External `docker compose` cannot pull these images (unauthorized).
+**Fix:** `mullvad lan set allow` — adds RFC1918 accept rules (10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16) before the reject. Verified: host to published port now returns HTTP 405. WS connections exchange real data (bytesRead: 5308, 95460, 22356).
 
----
+**Security note:** This allows LAN devices to reach host services listening on 0.0.0.0 (including Docker published ports). On trusted home network this is the intended use. Reversible: `mullvad lan set block`.
 
-## 🟢 WHAT THE COUNTER EXAMPLE ACTUALLY DOES
+### CAUSE 2 (CURRENT BLOCKER): TypeError in printWalletSummary
 
-The counter example provides a `standalone.yml` compose file that uses `testcontainers` with internal GHCR auth — it does NOT pull images directly. The README says `npm run standalone` which calls `npm run standalone-ps` in `counter-cli/package.json`, which runs a CLI script that uses `LocalTestEnvironmentBuilder` from `@midnight-ntwrk/testkit-js`.
-
----
-
-## 📂 Key Directories
-
-| Path | Purpose |
-|---|---|
-| `/Workspace/apecsdev/midnight-hello-official` | Our testbed (official hello-world template) |
-| `/Workspace/apecsdev/midnight-counter-official` | Counter reference (not installed, template only) |
-| `/Workspace/apecsdev/opalite-love` | Main project repo |
-
----
-
-## 📦 Current Dependencies Installed
-
-From `package.json` (individual wallet packages, NOT monolithic):
-- `@midnight-ntwrk/compact-runtime`: `0.16.0`
-- `@midnight-ntwrk/ledger-v8`: `8.0.3` (resolutions forced)
-- `@midnight-ntwrk/midnight-js-*`: `4.0.4`
-- `@midnight-ntwrk/testkit-js`: `4.0.4`
-- `@midnight-ntwrk/wallet-sdk-facade`: `3.0.0`
-- `@midnight-ntwrk/wallet-sdk-dust-wallet`: `3.0.0`
-- `@midnight-ntwrk/wallet-sdk-shielded`: `2.0.0`
-- `@midnight-ntwrk/wallet-sdk-unshielded-wallet`: `2.0.0`
-
----
-
-## 🔧 CURRENT BLOCKER: Wallet Sync WebSocket Abnormal Closure
-
-### Symptom
+**Symptom:** After wallet sync completes (checkmark shown), the CLI crashes:
 ```
-API-WS: disconnected from ws://127.0.0.1:9944/: 1006:: Abnormal Closure
-Wallet.Sync: [object Object]
-```
-Happens repeatedly. Wallet never syncs.
-
-### What We've Tried
-| Attempt | Result |
-|---|---|
-| Node `1.0.0` (Docker Hub, original) | FAIL — Abnormal Closure |
-| Node `0.22.3` (Docker Hub) | FAIL — Abnormal Closure |
-| Node `0.22.5` (Docker Hub) | FAIL — Abnormal Closure |
-| Node `0.22.2` (Docker Hub) | FAIL — Abnormal Closure |
-| Monolithic `wallet-sdk@1.2.0` | FAIL — Abnormal Closure |
-| Individual wallet packages | FAIL — Abnormal Closure |
-| Node `ghcr.io/midnight-ntwrk/midnight-node:0.22.0` | FAIL — GHCR unauthorized on docker pull |
-
-### What The Wallet SDK Actually Expects
-Found in `node_modules/@midnight-ntwrk/wallet-sdk-utilities/dist/testing/test-containers.js`:
-```js
-const container = new GenericContainer('ghcr.io/midnight-ntwrk/midnight-node:0.22.0')
+TypeError: Cannot read properties of undefined (reading 'encode')
+    at MidnightBech32m.encode (wallet-sdk-address-format/dist/index.js:43:34)
+    at printWalletSummary (counter-cli/src/api.ts:400)
+    at buildWalletAndWaitForFunds (counter-cli/src/api.ts:440)
+    at buildWallet (counter-cli/src/cli.ts:68)
+    at run (counter-cli/src/cli.ts:238)
 ```
 
----
+**Root cause (preliminary):** `printWalletSummary` calls `MidnightBech32m.encode(networkId, item)` where `item[Bech32mSymbol]` is undefined. This is a shielded or dust address object that lacks the Bech32m symbol — because a fresh genesis wallet on an undeployed network has no shielded/dust state yet (no transactions, no shielded coins).
 
-## 🎯 PATH FORWARD: Use LocalTestEnvironmentBuilder
+**Note on line numbers:** The crash stack trace says api.ts:285 and api.ts:343, but the actual grep shows printWalletSummary at line 400 and buildWalletAndWaitForFunds at line 440. The discrepancy is from tsx source map imprecision. The grep line numbers are authoritative.
 
-The counter example's `standalone.yml` references `LocalTestEnvironmentBuilder` which handles GHCR auth internally. We need to:
+**Evidence that sync SUCCEEDED:**
+- The spinner showed a checkmark.
+- The node is healthy and did NOT crash (verified: manual stack runs indefinitely, produces blocks every 6s, responds to RPC).
+- The node 1000 Normal Closure was client-initiated (SDK disconnecting after sync), NOT a node crash.
+- The indexer 1006 WS closures were SDK teardown, NOT indexer failures.
+- 95KB of subscription data was received on one WS connection.
 
-1. Rewrite `src/test/hw.test.ts` to use `LocalTestEnvironmentBuilder` from `@midnight-ntwrk/testkit-js` instead of the external compose.yml
-2. Stop using `yarn env:up` / `yarn env:down` — let testcontainers manage everything
-3. The test should spin up its own Docker containers with the correct GHCR images
+## VERIFIED FACTS
+1. **Node:** HEALTHY. Substrate dev node, produces blocks every 6s, responds to HTTP RPC (405 on GET, expects POST). Stays up indefinitely on its own. Container name: counter-node. Internal port: 9944.
+2. **Indexer:** HEALTHY. Returns 405 on GET /api/v3/graphql (correct for POST-only GraphQL endpoint). Indexes blocks from node. Container name: counter-indexer. Internal port: 8088. WS endpoint: /api/v3/graphql/ws.
+3. **Proof server:** Container name: counter-proof-server. Internal port: 6300. Wait strategy: log message "Actix runtime found; starting in Actix runtime".
+4. **Node 1000 Normal Closure during standalone run:** CLIENT-INITIATED. The wallet SDKs Polkadot.js API disconnected after sync. NOT a node crash.
+5. **Indexer 1006 WS close:** SDK teardown consequence. NOT an indexer failure.
+6. **Wallet sync:** Appears to SUCCEED based on checkmark, data received, and node stability.
+7. **The TypeError:** Is DOWNSTREAM of sync, in the display/summary function. NOT a sync failure.
 
----
+## CURRENT INFRASTRUCTURE STATE
+A manual compose stack was started with `docker compose -f standalone.yml up -d`. It may or may not still be running. Check with:
+```bash
+docker ps --filter name=counter-
+```
+If running, ports are ephemeral (check docker ps output). If gone, restart:
+```bash
+cd /Workspace/apecsdev/midnight-counter-reference/counter-cli && docker compose -f standalone.yml up -d
+```
 
-## 📋 State to Preserve
+## EPHEMERAL PATCHES (in root node_modules — LOST on npm install)
+These patches add verbose error logging. They are NOT required for the fix but help debugging. If lost, they are not critical to reapply.
 
-- `contracts/hello-world.compact` — compiled successfully
-- `contracts/managed/hello-world/` — compiled output
-- `src/wallet.ts` — wallet provider using individual wallet packages
-- `src/providers.ts` — provider builder
-- `src/config.ts` — network configs
-- `contracts/index.ts` — contract wrapper
-- `compose.yml` — currently has Docker Hub images (won't be needed after migration)
-- `package.json` — current dependencies with individual wallet packages
-- `yarn.lock` — resolved lockfile
+1. `node_modules/@midnight-ntwrk/wallet-sdk-indexer-client/dist/effect/WsSubscriptionClient.js`:
+- Added `import { inspect } from 'util';`
+- Replaced `new ServerError({ message: String(err) })` with `new ServerError({ message: inspect(err, { depth: 10 }) })`
 
----
+2. `node_modules/@midnight-ntwrk/wallet-sdk-unshielded-wallet/dist/v1/Sync.js` (and shielded + dust-wallet equivalents):
+- Added inspect-based error logging in Stream.mapError.
 
-## 🎯 EXIT CRITERIA
-- `yarn test:local` passes both tests (Deploys contract + Stores message)
-- No WebSocket Abnormal Closure errors
-- Tests use LocalTestEnvironmentBuilder internally (no external compose dependency)
+3. `counter-cli/src/cli.ts`:
+- Added `import * as util from 'util';` at top of file (line 1).
+- Replaced `logger.error(`Error: <span data-nanogpt-math-ph="0"></span>{util.inspect(e, { depth: null })}`);`
+
+## NEXT SESSION — EXACT STEPS
+
+### Step 1: Verify environment
+```bash
+mullvad lan get 2>/dev/null || mullvad lan set allow
+docker ps --filter name=counter- --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'
+```
+If no containers, start them:
+```bash
+cd /Workspace/apecsdev/midnight-counter-reference/counter-cli && docker compose -f standalone.yml up -d && sleep 30
+```
+
+### Step 2: Get the crash site source (THIS IS THE FIRST COMMAND TO RUN)
+```bash
+sed -n '400,530p' /Workspace/apecsdev/midnight-counter-reference/counter-cli/src/api.ts
+```
+This shows `printWalletSummary` (line 400) and `buildWalletAndWaitForFunds` (line 440). The crash is in printWalletSummary encoding a shielded/dust address that is undefined.
+
+### Step 3: Diagnose
+Look at what `printWalletSummary` does with `state`:
+- Which address fields does it access and encode?
+- Which address is undefined (shielded, dust, or both)?
+- Is this expected for a fresh wallet with no transactions?
+
+### Step 4: Fix
+Add a guard in `printWalletSummary` for undefined/missing shielded/dust addresses. A fresh genesis wallet on an undeployed network has no shielded/dust state — the display function must handle this gracefully (skip or show "not yet available" instead of crashing).
+
+### Step 5: Run
+```bash
+cd /Workspace/apecsdev/midnight-counter-reference/counter-cli && docker compose -f standalone.yml down && npm run standalone
+```
+(down first because standalone.ts starts its own testcontainers env with fixed container_name values — both cannot coexist.)
+
+### Expected success flow
+1. Containers start (node, indexer, proof-server).
+2. Wallet builds from genesis seed.
+3. Wallet syncs with network (checkmark).
+4. printWalletSummary displays addresses (unshielded at minimum; shielded/dust may be empty/zero).
+5. Providers configured.
+6. Contract menu appears: deploy, join, monitor DUST.
+7. Deploy counter contract.
+8. CLI prints contract address.
+9. Counter interaction menu: increment, display, exit.
+
+## CLI.TS FLOW (for reference)
+```
+run(config, logger, dockerEnv)
+  -> dockerEnv.up()  // starts containers
+  -> mapContainerPort()  // remaps config.indexer/indexerWS/node/proofServer to testcontainers mapped ports
+  -> buildWallet(config, rli)
+    -> buildWalletAndWaitForFunds(config, GENESIS_MINT_WALLET_SEED)  // standalone mode
+      -> syncs wallet
+      -> printWalletSummary(syncedState, unshieldedKeystore)  // CRASHES HERE
+  -> configureProviders(walletCtx, config)
+  -> mainLoop(providers, walletCtx, rli)
+    -> deployOrJoin()
+      -> deploy() or joinContract()
+    -> counter interactions (increment, display)
+  -> finally: wallet.stop(), env.down(), "Goodbye."
+```
+
+## VERSIONS
+- wallet-sdk-facade: 3.0.0
+- wallet-sdk-indexer-client: 1.2.0
+- wallet-sdk-address-format: (check node_modules for version)
+- indexer-standalone image: midnightntwrk/indexer-standalone:4.0.0
+- Node.js: v22.23.1
+- Docker: standard bridge networking, ephemeral port mapping
