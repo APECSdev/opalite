@@ -1,0 +1,10 @@
+{
+  "name": "@opalite-love/deploy-cli",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "preprod": "node --no-warnings --experimental-specifier-resolution=node --loader ts-node/esm src/preprod.ts",
+    "preprod:ps": "docker compose -f proof-server.yml pull && npm run preprod"
+  }
+}
