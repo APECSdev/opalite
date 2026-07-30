@@ -1,0 +1,8 @@
+{
+  "version": 3,
+  "file": "index.js",
+  "sourceRoot": "../../../../",
+  "sources": ["src/age_verification.compact"],
+  "names": [],
+  "mappings": ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;EAAA;;;;;;;;;;MAMA,AAAA,SAEC;;;;;;;;;;;;;;;;;;;;;;OAAA;;;;GACA;EATD;;;;;;;;;;;;;;;;;;;;;;;;;;IAIA;;;;;;;;;yEAAqC;;;;;;;GAKpC;EAHD,AAAA,YAEC;UADG,KAAa;IAAb;;;;;;;;;;6FAAA,KAAa;;;;wEAAA;;GAChB;;;;;;;;;;;;;;;;IAJD;qCAAA;;;;;;;;;;;0GAAqC;KAAA;;;;;;;;;;"
+}
