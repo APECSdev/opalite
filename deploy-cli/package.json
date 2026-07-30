@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "preprod": "node --no-warnings --experimental-specifier-resolution=node --loader ts-node/esm src/preprod.ts",
-    "preprod:ps": "docker compose -f proof-server.yml pull && npm run preprod"
+    "preprod": "tsx src/preprod.ts",
+    "preview": "tsx src/preview.ts"
   }
 }

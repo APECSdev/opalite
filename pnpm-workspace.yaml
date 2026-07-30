@@ -1,4 +1,9 @@
 packages:
-  - 'packages/contracts'
-  - 'packages/web'
-  - 'deploy-cli'
+  - packages/contracts
+  - packages/web
+  - deploy-cli
+onlyBuiltDependencies:
+  - classic-level
+  - core-js
+  - esbuild
+  - msgpackr-extract
