@@ -122,7 +122,7 @@ export const deploy = async (
   return ageVerificationContract;
 };
 
-export const increment = async (ageVerificationContract: DeployedAgeVerificationContract): Promise<FinalizedTxData> => {
+export const verifyAge = async (ageVerificationContract: DeployedAgeVerificationContract): Promise<FinalizedTxData> => {
   logger.info('Verifying age...');
   const finalizedTxData = await ageVerificationContract.callTx.verifyAge();
   logger.info(`Transaction ${finalizedTxData.public.txId} added in block ${finalizedTxData.public.blockHeight}`);
