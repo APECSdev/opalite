@@ -1,3 +1,4 @@
 packages:
-  - 'packages/*'
-  - '!packages/leaderboard-ui'
+  - 'packages/contracts'
+  - 'packages/web'
+  - 'deploy-cli'
