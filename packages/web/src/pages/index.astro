@@ -1,4 +1,14 @@
 ---
+import Base from '../layouts/Base.astro';
+import Nav from '../components/Nav.astro';
+import Footer from '../components/Footer.astro';
+// Preserve any existing frontmatter variables
+import '../styles/global.css';
+---
+<Base>
+  <Nav />
+  <main>
+    ---
 import '../styles/global.css';
 ---
 
@@ -78,3 +88,7 @@ import '../styles/global.css';
 
 </body>
 </html>
+
+  </main>
+  <Footer />
+</Base>
