@@ -2,36 +2,10 @@
 import Base from '../layouts/Base.astro';
 import Nav from '../components/Nav.astro';
 import Footer from '../components/Footer.astro';
-// Preserve any existing frontmatter variables
-import '../styles/global.css';
 ---
 <Base>
   <Nav />
-  <main>
-    ---
-import '../styles/global.css';
----
-
-<html lang="en">
-<head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width" initial-scale="1" />
-    <title>Opalite Love | Private Swipe Matching</title>
-</head>
-<body class="bg-slate-900 text-slate-100 antialiased">
-    
-    <!-- Navbar -->
-    <header class="absolute top-0 w-full z-10">
-        <nav class="container mx-auto px-6 py-4 flex justify-between items-center">
-            <a href="/" class="font-bold text-xl text-pink-500">Opalite.love</a>
-            <div class="hidden md:flex space-x-6">
-                <a href="#how" class="hover:text-pink-500 transition">How it Works</a>
-                <a href="#privacy" class="hover:text-pink-500 transition">Privacy</a>
-                <a href="#download" class="hover:text-pink-500 transition">Download</a>
-            </div>
-        </nav>
-    </header>
-
+  <main class="bg-slate-900 text-slate-100 antialiased">
     <!-- Hero Section -->
     <section class="h-screen flex items-center justify-center text-center bg-slate-900 relative overflow-hidden">
         <div class="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(236,72,153,0.15)_0,rgba(15,23,42,1)_65%)]"></div>
@@ -80,15 +54,6 @@ import '../styles/global.css';
         <p class="text-slate-400 mb-10 max-w-xl mx-auto">Currently available for Android via direct APK download. Coming soon to F-Droid. iOS TestFlight access is coming soon!</p>
         <a href="#" class="px-8 py-3 bg-pink-600 rounded-lg font-semibold hover:bg-pink-500 transition">Download Android APK</a>
     </section>
-
-    <!-- Footer -->
-    <footer class="py-8 text-center bg-slate-950 border-t border-slate-800">
-        <p class="text-slate-500 text-sm">© 2024 Opalite Love. Built for the Rise In Midnight Hackathon.</p>
-    </footer>
-
-</body>
-</html>
-
   </main>
   <Footer />
 </Base>
