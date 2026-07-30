@@ -1,0 +1,24 @@
+{
+  "name": "@opalite-love/age-verification-contract",
+  "version": "0.1.0",
+  "license": "Apache-2.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "compact": "compact compile src/age_verification.compact src/managed/age_verification",
+    "test": "vitest run",
+    "test:compile": "npm run compact && vitest run",
+    "build": "rm -rf dist && tsc --project tsconfig.build.json && cp -Rf ./src/managed ./dist/managed",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@midnight-ntwrk/compact-runtime": "0.16.0",
+    "@midnight-ntwrk/midnight-js-network-id": "4.1.1"
+  },
+  "devDependencies": {
+    "vitest": "^4.1.0",
+    "typescript": "^6.0.2"
+  }
+}
