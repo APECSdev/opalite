@@ -1,0 +1,9 @@
+pragma language_version >= 0.20;
+
+import CompactStandardLibrary;
+
+export ledger verifiedCount: Counter;
+
+export circuit verifyAge(): [] {
+    verifiedCount.increment(1);
+}
