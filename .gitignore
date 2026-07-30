@@ -65,3 +65,7 @@ jspm_packages/
 # ai scratch work
 .midnight-expert
 .claude
+
+# Secrets and wallet seeds
+.secrets
+*.seed
