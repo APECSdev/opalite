@@ -1,0 +1,289 @@
+---
+import Base from "../layouts/Base.astro";
+---
+
+<Base title="Contracts — Opalite" description="Deploy and interact with Opalite smart contracts on Midnight.">
+  <section class="mx-auto max-w-4xl px-6 py-16">
+    <h1 class="text-4xl font-bold tracking-tight text-slate-100">Contracts</h1>
+    <p class="mt-3 text-lg text-slate-400">
+      Deploy and interact with Opalite smart contracts on the Midnight network.
+      Connect the <a href="https://chromewebstore.google.com/detail/1am/bphnkdkcnfhompoegfpgnkidcjfbojjp" class="text-sky-400 hover:underline" target="_blank" rel="noopener">1AM wallet</a> — fees are sponsored, no dust or NIGHT required.
+    </p>
+
+    <!-- Wallet connection -->
+    <div class="mt-10 rounded-2xl border border-slate-700/60 bg-slate-900/60 p-6">
+      <div class="flex items-center justify-between gap-4">
+        <div>
+          <h2 class="text-lg font-semibold text-slate-100">Wallet</h2>
+          <p id="wallet-status" class="mt-1 text-sm text-slate-400">Not connected</p>
+          <p id="wallet-address" class="mt-1 text-xs font-mono text-slate-500"></p>
+        </div>
+        <button id="connect-btn" class="rounded-lg bg-sky-500 px-5 py-2.5 text-sm font-semibold text-white hover:bg-sky-400 disabled:opacity-40">
+          Connect 1AM
+        </button>
+      </div>
+    </div>
+
+    <!-- Contracts list -->
+    <div class="mt-8 space-y-6">
+      <div class="rounded-2xl border border-slate-700/60 bg-slate-900/60 p-6">
+        <div class="flex items-start justify-between gap-4">
+          <div>
+            <h3 class="text-lg font-semibold text-slate-100">Age Verification</h3>
+            <p class="mt-1 text-sm text-slate-400">Zero-knowledge age-gating primitive. Prove 18+ without revealing birthdate. Increments a public counter per verification.</p>
+            <p class="mt-2 text-xs text-slate-500 font-mono">circuit: verifyAge()</p>
+          </div>
+        </div>
+        <div class="mt-4 flex flex-wrap gap-3">
+          <button id="deploy-btn" disabled class="rounded-lg bg-emerald-500 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-400 disabled:opacity-40">Deploy contract</button>
+          <button id="verify-btn" disabled class="rounded-lg bg-violet-500 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-400 disabled:opacity-40">Call verifyAge</button>
+          <button id="copy-addr-btn" disabled class="rounded-lg border border-slate-600 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-800 disabled:opacity-40">Copy address</button>
+        </div>
+        <div class="mt-4 space-y-1 text-sm">
+          <p>Contract address: <span id="contract-address" class="font-mono text-xs text-slate-400 break-all">—</span></p>
+          <p>Verified count: <span id="counter-value" class="font-mono text-slate-300">—</span></p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Log panel -->
+    <div class="mt-8">
+      <h2 class="text-lg font-semibold text-slate-100">Activity log</h2>
+      <pre id="log" class="mt-2 h-64 overflow-auto rounded-xl border border-slate-700/60 bg-slate-950 p-4 text-xs font-mono text-slate-300 whitespace-pre-wrap"></pre>
+    </div>
+  </section>
+</Base>
+
+<script type="module">
+  import { CompiledContract } from "@midnight-ntwrk/compact-js";
+  import { deployContract, submitCallTx } from "@midnight-ntwrk/midnight-js-contracts";
+  import { FetchZkConfigProvider } from "@midnight-ntwrk/midnight-js-fetch-zk-config-provider";
+  import { indexerPublicDataProvider } from "@midnight-ntwrk/midnight-js-indexer-public-data-provider";
+  import { setNetworkId } from "@midnight-ntwrk/midnight-js-network-id";
+  import { Transaction, CostModel } from "@midnight-ntwrk/ledger-v8";
+  import { Contract } from "../contracts/age_verification.contract.js";
+
+  const NETWORK = "preprod";
+  const ZK_BASE = "/contract/compiled/age_verification";
+
+  // ===== State =====
+  let api = null;
+  let providers = null;
+  let contractAddress = null;
+  let compiledContract = null;
+
+  // ===== Helpers =====
+  const log = (msg) => {
+    const el = document.getElementById("log");
+    if (el) el.textContent += msg + "\n";
+    if (el) el.scrollTop = el.scrollHeight;
+  };
+
+  const setWalletStatus = (msg, addr = "") => {
+    document.getElementById("wallet-status").textContent = msg;
+    document.getElementById("wallet-address").textContent = addr;
+  };
+
+  const enable = (id, on = true) => {
+    const b = document.getElementById(id);
+    if (b) b.disabled = !on;
+  };
+
+  const toHex = (bytes) =>
+    Array.from(bytes).map((b) => b.toString(16).padStart(2, "0")).join("");
+
+  const fromHex = (hex) =>
+    new Uint8Array(hex.match(/.{2}/g).map((b) => parseInt(b, 16)));
+
+  // ===== Detect 1AM wallet (with polling, per proof-of-age connector.ts) =====
+  function detectWallet() {
+    return new Promise((resolve) => {
+      const w = window.midnight?.["1am"];
+      if (w) {
+        resolve(w);
+        return;
+      }
+      let attempts = 0;
+      const interval = setInterval(() => {
+        const ww = window.midnight?.["1am"];
+        if (ww) {
+          clearInterval(interval);
+          resolve(ww);
+        } else if (++attempts > 50) {
+          clearInterval(interval);
+          resolve(null);
+        }
+      }, 100);
+    });
+  }
+
+  // ===== Build the CompiledContract reference =====
+  // Our contract has NO witnesses (no `witness` declarations in the .compact
+  // source), so we use withVacantWitnesses. ZK keys are fetched from ZK_BASE.
+  function buildCompiledContract() {
+    return CompiledContract.make("AgeVerification", Contract).pipe(
+      CompiledContract.withVacantWitnesses,
+      CompiledContract.withCompiledFileAssets(ZK_BASE),
+    );
+  }
+
+  // ===== Build the five Midnight providers (per proof-of-age oneAmClient.ts) =====
+  // This delegates proving + dust sponsorship to the 1AM wallet / ProofStation.
+  async function buildProviders() {
+    const config = await api.getConfiguration();
+    setNetworkId(config.networkId);
+
+    const zkConfigProvider = new FetchZkConfigProvider(
+      ZK_BASE,
+      fetch.bind(window),
+    );
+    const publicDataProvider = indexerPublicDataProvider(
+      config.indexerUri,
+      config.indexerWsUri,
+    );
+    const provingProvider = await api.getProvingProvider(zkConfigProvider);
+
+    const proofProvider = {
+      async proveTx(unprovenTx) {
+        return unprovenTx.prove(provingProvider, CostModel.initialCostModel());
+      },
+    };
+
+    const shielded = await api.getShieldedAddresses();
+    const walletProvider = {
+      getCoinPublicKey: () => shielded.shieldedCoinPublicKey,
+      getEncryptionPublicKey: () => shielded.shieldedEncryptionPublicKey,
+      async balanceTx(tx) {
+        const hex = toHex(tx.serialize());
+        const result = await api.balanceUnsealedTransaction(hex);
+        return Transaction.deserialize(
+          "signature",
+          "proof",
+          "binding",
+          fromHex(result.tx),
+        );
+      },
+    };
+
+    const midnightProvider = {
+      async submitTx(tx) {
+        const hex = toHex(tx.serialize());
+        await api.submitTransaction(hex);
+        return tx.identifiers()[0];
+      },
+    };
+
+    return {
+      publicDataProvider,
+      zkConfigProvider,
+      proofProvider,
+      walletProvider,
+      midnightProvider,
+    };
+  }
+
+  // ===== Connect 1AM wallet =====
+  async function connect() {
+    try {
+      log("[wallet] detecting 1AM...");
+      const wallet = await detectWallet();
+      if (!wallet) {
+        log("[wallet] 1AM extension not found. Install: https://chromewebstore.google.com/detail/1am/bphnkdkcnfhompoegfpgnkidcjfbojjp");
+        setWalletStatus("1AM wallet not detected");
+        return;
+      }
+      setWalletStatus("Connecting to " + NETWORK + "...");
+      api = await wallet.connect(NETWORK);
+
+      const config = await api.getConfiguration();
+      const addresses = await api.getShieldedAddresses();
+      const shieldedAddress =
+        addresses.shieldedAddress ?? addresses.address ?? "(shielded)";
+
+      setWalletStatus("Connected to " + config.networkId, shieldedAddress);
+      log("[wallet] connected to " + config.networkId);
+      log("[wallet] shielded: " + shieldedAddress);
+
+      // Hint usage (KageVote pattern — tells the wallet which APIs we'll call)
+      if (typeof api.hintUsage === "function") {
+        await api.hintUsage([
+          "getConfiguration",
+          "getShieldedAddresses",
+          "getProvingProvider",
+          "balanceUnsealedTransaction",
+          "submitTransaction",
+        ]);
+        log("[wallet] hintUsage sent");
+      }
+
+      log("[providers] building providers...");
+      providers = await buildProviders();
+      compiledContract = buildCompiledContract();
+      log("[providers] ready");
+      log("[contract] compiled contract built");
+      enable("deploy-btn", true);
+    } catch (err) {
+      log("[wallet] ERROR: " + (err?.message ?? err));
+      setWalletStatus("Connection failed");
+    }
+  }
+
+  // ===== Deploy =====
+  async function deploy() {
+    try {
+      enable("deploy-btn", false);
+      log("[deploy] deploying AgeVerification contract...");
+      const deployed = await deployContract(providers, {
+        compiledContract,
+      });
+      contractAddress = deployed.deployTxData.public.contractAddress;
+      document.getElementById("contract-address").textContent = contractAddress;
+      log("[deploy] SUCCESS");
+      log("[deploy] contract address: " + contractAddress);
+      log("[deploy] tx: " + (deployed.deployTxData.public.txId ?? "(see wallet)"));
+      enable("verify-btn", true);
+      enable("copy-addr-btn", true);
+    } catch (err) {
+      log("[deploy] ERROR: " + (err?.message ?? err));
+      enable("deploy-btn", true);
+    }
+  }
+
+  // ===== Call verifyAge =====
+  async function verifyAge() {
+    try {
+      enable("verify-btn", false);
+      log("[call] submitting verifyAge...");
+      const result = await submitCallTx(providers, {
+        compiledContract,
+        contractAddress,
+        circuitId: "verifyAge",
+        args: [],
+      });
+      const txId =
+        result?.callTxData?.public?.txId ??
+        result?.public?.txId ??
+        "(see wallet)";
+      log("[call] SUCCESS — tx: " + txId);
+      // Increment local counter display (on-chain read would need getPublicStates)
+      const counterEl = document.getElementById("counter-value");
+      const current = parseInt(counterEl.textContent) || 0;
+      counterEl.textContent = String(current + 1);
+      log("[call] verifiedCount incremented");
+      enable("verify-btn", true);
+    } catch (err) {
+      log("[call] ERROR: " + (err?.message ?? err));
+      enable("verify-btn", true);
+    }
+  }
+
+  // ===== Wire up buttons =====
+  document.getElementById("connect-btn").addEventListener("click", connect);
+  document.getElementById("deploy-btn").addEventListener("click", deploy);
+  document.getElementById("verify-btn").addEventListener("click", verifyAge);
+  document.getElementById("copy-addr-btn").addEventListener("click", () => {
+    if (contractAddress) navigator.clipboard.writeText(contractAddress);
+  });
+
+  log("[init] Opalite contracts page loaded. Click \"Connect 1AM\" to begin.");
+</script>

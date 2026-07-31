@@ -71,3 +71,4 @@ jspm_packages/
 *.seed
 deploy-cli/wallet-state.json
 deploy-cli/wallet-state.json.tmp
+skills/
