@@ -1,289 +1,480 @@
 ---
-import Base from "../layouts/Base.astro";
+import Base from '../layouts/Base.astro';
 ---
 
 <Base title="Contracts — Opalite" description="Deploy and interact with Opalite smart contracts on Midnight.">
-  <section class="mx-auto max-w-4xl px-6 py-16">
-    <h1 class="text-4xl font-bold tracking-tight text-slate-100">Contracts</h1>
-    <p class="mt-3 text-lg text-slate-400">
+  <section class="py-20 px-4 max-w-4xl mx-auto">
+    <h1 class="text-4xl font-bold mb-4">Contracts</h1>
+    <p class="text-lg text-gray-400 mb-8">
       Deploy and interact with Opalite smart contracts on the Midnight network.
-      Connect the <a href="https://chromewebstore.google.com/detail/1am/bphnkdkcnfhompoegfpgnkidcjfbojjp" class="text-sky-400 hover:underline" target="_blank" rel="noopener">1AM wallet</a> — fees are sponsored, no dust or NIGHT required.
+      Connect the <a href="https://chromewebstore.google.com/detail/1am/bphnkdkcnfhompoegfpgnkidcjfbojjp" class="text-blue-400 hover:underline">1AM wallet</a> — fees are sponsored, no dust or NIGHT required.
     </p>
 
-    <!-- Wallet connection -->
-    <div class="mt-10 rounded-2xl border border-slate-700/60 bg-slate-900/60 p-6">
-      <div class="flex items-center justify-between gap-4">
-        <div>
-          <h2 class="text-lg font-semibold text-slate-100">Wallet</h2>
-          <p id="wallet-status" class="mt-1 text-sm text-slate-400">Not connected</p>
-          <p id="wallet-address" class="mt-1 text-xs font-mono text-slate-500"></p>
-        </div>
-        <button id="connect-btn" class="rounded-lg bg-sky-500 px-5 py-2.5 text-sm font-semibold text-white hover:bg-sky-400 disabled:opacity-40">
-          Connect 1AM
+    <!-- Wallet Section -->
+    <div class="bg-gray-900 rounded-lg p-6 mb-6">
+      <h2 class="text-xl font-semibold mb-3">Wallet</h2>
+      <p id="wallet-status" class="text-gray-400 mb-3">Not connected</p>
+      <button id="connect-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+        Connect 1AM
+      </button>
+    </div>
+
+    <!-- Contract Section -->
+    <div class="bg-gray-900 rounded-lg p-6 mb-6">
+      <h2 class="text-xl font-semibold mb-3">Age Verification</h2>
+      <p class="text-gray-400 mb-3">
+        Zero-knowledge age-gating primitive. Prove 18+ without revealing birthdate.
+        Increments a public counter per verification.
+      </p>
+      <div class="flex gap-3 flex-wrap mb-4">
+        <button id="deploy-btn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">
+          Deploy contract
+        </button>
+        <button id="call-btn" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded">
+          Call verifyAge
+        </button>
+        <button id="copy-btn" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
+          Copy address
         </button>
       </div>
+      <p class="text-sm text-gray-400">Contract address: <span id="contract-address" class="font-mono">—</span></p>
+      <p class="text-sm text-gray-400">Verified count: <span id="verified-count" class="font-mono">—</span></p>
     </div>
 
-    <!-- Contracts list -->
-    <div class="mt-8 space-y-6">
-      <div class="rounded-2xl border border-slate-700/60 bg-slate-900/60 p-6">
-        <div class="flex items-start justify-between gap-4">
-          <div>
-            <h3 class="text-lg font-semibold text-slate-100">Age Verification</h3>
-            <p class="mt-1 text-sm text-slate-400">Zero-knowledge age-gating primitive. Prove 18+ without revealing birthdate. Increments a public counter per verification.</p>
-            <p class="mt-2 text-xs text-slate-500 font-mono">circuit: verifyAge()</p>
-          </div>
-        </div>
-        <div class="mt-4 flex flex-wrap gap-3">
-          <button id="deploy-btn" disabled class="rounded-lg bg-emerald-500 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-400 disabled:opacity-40">Deploy contract</button>
-          <button id="verify-btn" disabled class="rounded-lg bg-violet-500 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-400 disabled:opacity-40">Call verifyAge</button>
-          <button id="copy-addr-btn" disabled class="rounded-lg border border-slate-600 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-800 disabled:opacity-40">Copy address</button>
-        </div>
-        <div class="mt-4 space-y-1 text-sm">
-          <p>Contract address: <span id="contract-address" class="font-mono text-xs text-slate-400 break-all">—</span></p>
-          <p>Verified count: <span id="counter-value" class="font-mono text-slate-300">—</span></p>
-        </div>
+    <!-- Log Panel -->
+    <div class="bg-gray-900 rounded-lg p-6">
+      <h2 class="text-xl font-semibold mb-3">Log</h2>
+      <div id="log" class="font-mono text-sm bg-black/50 rounded p-4 h-64 overflow-y-auto">
+        <div class="text-gray-500">Waiting for actions...</div>
       </div>
-    </div>
-
-    <!-- Log panel -->
-    <div class="mt-8">
-      <h2 class="text-lg font-semibold text-slate-100">Activity log</h2>
-      <pre id="log" class="mt-2 h-64 overflow-auto rounded-xl border border-slate-700/60 bg-slate-950 p-4 text-xs font-mono text-slate-300 whitespace-pre-wrap"></pre>
     </div>
   </section>
 </Base>
 
 <script type="module">
-  import { CompiledContract } from "@midnight-ntwrk/compact-js";
-  import { deployContract, submitCallTx } from "@midnight-ntwrk/midnight-js-contracts";
-  import { FetchZkConfigProvider } from "@midnight-ntwrk/midnight-js-fetch-zk-config-provider";
-  import { indexerPublicDataProvider } from "@midnight-ntwrk/midnight-js-indexer-public-data-provider";
-  import { setNetworkId } from "@midnight-ntwrk/midnight-js-network-id";
-  import { Transaction, CostModel } from "@midnight-ntwrk/ledger-v8";
-  import { Contract } from "../contracts/age_verification.contract.js";
+  // ═══════════════════════════════════════════════════════════
+  // NO TOP-LEVEL IMPORTS — all @midnight-ntwrk imports are
+  // dynamic (inside function bodies). This ensures the script
+  // ALWAYS executes even if SDK WASM packages fail to bundle.
+  // The wallet connection needs ZERO imports.
+  // ═══════════════════════════════════════════════════════════
 
-  const NETWORK = "preprod";
-  const ZK_BASE = "/contract/compiled/age_verification";
-
-  // ===== State =====
-  let api = null;
-  let providers = null;
+  let connectedAPI = null;
   let contractAddress = null;
-  let compiledContract = null;
 
-  // ===== Helpers =====
-  const log = (msg) => {
-    const el = document.getElementById("log");
-    if (el) el.textContent += msg + "\n";
-    if (el) el.scrollTop = el.scrollHeight;
-  };
+  // ── UI helpers ──
+  function log(msg, level) {
+    level = level || 'info';
+    var prefix = { info: 'i', error: 'X', success: 'OK', warn: '!' }[level] || 'i';
+    console.log('[opalite] ' + msg);
+    var logEl = document.getElementById('log');
+    if (logEl) {
+      var time = new Date().toLocaleTimeString();
+      var color = { info: 'color:#60a5fa', error: 'color:#f87171', success: 'color:#4ade80', warn: 'color:#fbbf24' }[level] || 'color:#60a5fa';
+      var line = document.createElement('div');
+      line.style.cssText = color;
+      line.textContent = '[' + time + '] ' + prefix + ' ' + msg;
+      logEl.appendChild(line);
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+  }
 
-  const setWalletStatus = (msg, addr = "") => {
-    document.getElementById("wallet-status").textContent = msg;
-    document.getElementById("wallet-address").textContent = addr;
-  };
+  function setStatus(id, text) {
+    var el = document.getElementById(id);
+    if (el) el.textContent = text;
+  }
 
-  const enable = (id, on = true) => {
-    const b = document.getElementById(id);
-    if (b) b.disabled = !on;
-  };
-
-  const toHex = (bytes) =>
-    Array.from(bytes).map((b) => b.toString(16).padStart(2, "0")).join("");
-
-  const fromHex = (hex) =>
-    new Uint8Array(hex.match(/.{2}/g).map((b) => parseInt(b, 16)));
-
-  // ===== Detect 1AM wallet (with polling, per proof-of-age connector.ts) =====
+  // ── Wallet detection ──
   function detectWallet() {
-    return new Promise((resolve) => {
-      const w = window.midnight?.["1am"];
-      if (w) {
-        resolve(w);
+    log('Detecting wallet...');
+    log('window.midnight: ' + (window.midnight ? 'exists' : 'NOT FOUND'));
+
+    if (!window.midnight) {
+      // Check alternative injection points
+      var walletKeys = Object.keys(window).filter(function(k) {
+        return /midnight|1am|wallet/i.test(k);
+      });
+      log('Wallet-related window keys: ' + (walletKeys.join(', ') || 'none'));
+      log('window.cardano: ' + (window.cardano ? 'exists' : 'not found'));
+      return null;
+    }
+
+    log('window.midnight keys: ' + Object.keys(window.midnight).join(', '));
+
+    // Try multiple possible keys
+    var keys = ['1am', '1AM', 'midnight', 'Midnight'];
+    for (var i = 0; i < keys.length; i++) {
+      var key = keys[i];
+      if (window.midnight[key]) {
+        log('Found wallet at window.midnight["' + key + '"]', 'success');
+        var wallet = window.midnight[key];
+        log('Wallet type: ' + typeof wallet);
+        var ownKeys = Object.keys(wallet);
+        log('Wallet own keys: ' + ownKeys.join(', '));
+        var proto = Object.getPrototypeOf(wallet);
+        if (proto) {
+          var methods = Object.getOwnPropertyNames(proto).filter(function(n) { return n !== 'constructor'; });
+          log('Wallet proto methods: ' + methods.join(', '));
+        }
+        return wallet;
+      }
+    }
+
+    // Check if window.midnight itself is the wallet
+    if (typeof window.midnight.connect === 'function' || typeof window.midnight.enable === 'function') {
+      log('window.midnight IS the wallet directly');
+      return window.midnight;
+    }
+
+    log('No wallet found in window.midnight', 'error');
+    return null;
+  }
+
+  // ── Connect wallet ──
+  async function connectWallet() {
+    log('=== Connect clicked ===');
+    try {
+      var wallet = detectWallet();
+      if (!wallet) {
+        var msg = 'No wallet found. Make sure 1AM extension is installed and enabled.';
+        log(msg, 'error');
+        setStatus('wallet-status', msg);
         return;
       }
-      let attempts = 0;
-      const interval = setInterval(() => {
-        const ww = window.midnight?.["1am"];
-        if (ww) {
-          clearInterval(interval);
-          resolve(ww);
-        } else if (++attempts > 50) {
-          clearInterval(interval);
-          resolve(null);
+
+      // Try connect() first (per 1AM docs)
+      if (typeof wallet.connect === 'function') {
+        log('Trying wallet.connect("preprod")...');
+        try {
+          connectedAPI = await wallet.connect('preprod');
+          log('connect("preprod") succeeded!', 'success');
+        } catch (e) {
+          log('connect("preprod") failed: ' + e.message, 'warn');
+          log('Trying wallet.connect() without args...');
+          connectedAPI = await wallet.connect();
+          log('connect() succeeded!', 'success');
         }
-      }, 100);
-    });
+      } else if (typeof wallet.enable === 'function') {
+        log('Trying wallet.enable()...');
+        connectedAPI = await wallet.enable();
+        log('enable() succeeded!', 'success');
+      } else {
+        var msg2 = 'Wallet has no connect() or enable() method';
+        log(msg2, 'error');
+        setStatus('wallet-status', msg2);
+        return;
+      }
+
+      if (connectedAPI) {
+        log('connectedAPI type: ' + typeof connectedAPI);
+        if (typeof connectedAPI === 'object' && connectedAPI) {
+          log('connectedAPI own keys: ' + Object.keys(connectedAPI).join(', '));
+          var cproto = Object.getPrototypeOf(connectedAPI);
+          if (cproto) {
+            var cmethods = Object.getOwnPropertyNames(cproto).filter(function(n) { return n !== 'constructor'; });
+            log('connectedAPI methods: ' + cmethods.join(', '));
+          }
+        }
+
+        // Try to get configuration
+        if (typeof connectedAPI.getConfiguration === 'function') {
+          try {
+            var config = await connectedAPI.getConfiguration();
+            log('Network: ' + config.networkId, 'success');
+            log('Indexer: ' + config.indexerUri, 'success');
+            log('Prover: ' + config.proverServerUri, 'success');
+            log('Substrate: ' + config.substrateNodeUri, 'success');
+          } catch (e) {
+            log('getConfiguration() failed: ' + e.message, 'warn');
+          }
+        }
+
+        // Try to get addresses
+        if (typeof connectedAPI.getShieldedAddresses === 'function') {
+          try {
+            var addrs = await connectedAPI.getShieldedAddresses();
+            log('Shielded addresses: ' + JSON.stringify(addrs), 'success');
+          } catch (e) {
+            log('getShieldedAddresses() failed: ' + e.message, 'warn');
+          }
+        }
+
+        setStatus('wallet-status', 'Connected');
+        log('Wallet connected successfully!', 'success');
+      } else {
+        log('Connection returned null/undefined', 'error');
+        setStatus('wallet-status', 'Connection returned null');
+      }
+    } catch (err) {
+      log('Connection error: ' + err.message, 'error');
+      if (err.stack) log('Stack: ' + err.stack, 'error');
+      setStatus('wallet-status', 'Error: ' + err.message);
+    }
   }
 
-  // ===== Build the CompiledContract reference =====
-  // Our contract has NO witnesses (no `witness` declarations in the .compact
-  // source), so we use withVacantWitnesses. ZK keys are fetched from ZK_BASE.
-  function buildCompiledContract() {
-    return CompiledContract.make("AgeVerification", Contract).pipe(
-      CompiledContract.withVacantWitnesses,
-      CompiledContract.withCompiledFileAssets(ZK_BASE),
-    );
-  }
+  // ── Build providers (from 1AM docs) ──
+  async function buildProviders(api) {
+    log('Building providers...');
+    var config = await api.getConfiguration();
+    log('Network ID: ' + config.networkId);
 
-  // ===== Build the five Midnight providers (per proof-of-age oneAmClient.ts) =====
-  // This delegates proving + dust sponsorship to the 1AM wallet / ProofStation.
-  async function buildProviders() {
-    const config = await api.getConfiguration();
-    setNetworkId(config.networkId);
+    var networkMod = await import('@midnight-ntwrk/midnight-js-network-id');
+    networkMod.setNetworkId(config.networkId);
+    log('Network ID set');
 
-    const zkConfigProvider = new FetchZkConfigProvider(
-      ZK_BASE,
+    var zkMod = await import('@midnight-ntwrk/midnight-js-fetch-zk-config-provider');
+    var zkConfigProvider = new zkMod.FetchZkConfigProvider(
+      '/contract/compiled/age_verification',
       fetch.bind(window),
     );
-    const publicDataProvider = indexerPublicDataProvider(
+    log('zkConfigProvider created');
+
+    var indexerMod = await import('@midnight-ntwrk/midnight-js-indexer-public-data-provider');
+    var publicDataProvider = indexerMod.indexerPublicDataProvider(
       config.indexerUri,
       config.indexerWsUri,
     );
-    const provingProvider = await api.getProvingProvider(zkConfigProvider);
+    log('publicDataProvider created');
 
-    const proofProvider = {
-      async proveTx(unprovenTx) {
+    var provingProvider = await api.getProvingProvider(zkConfigProvider);
+    log('provingProvider acquired');
+
+    var ledgerMod = await import('@midnight-ntwrk/ledger-v8');
+    var CostModel = ledgerMod.CostModel;
+    var Transaction = ledgerMod.Transaction;
+
+    var proofProvider = {
+      proveTx: async function(unprovenTx) {
+        log('Proving transaction...');
         return unprovenTx.prove(provingProvider, CostModel.initialCostModel());
       },
     };
 
-    const shielded = await api.getShieldedAddresses();
-    const walletProvider = {
-      getCoinPublicKey: () => shielded.shieldedCoinPublicKey,
-      getEncryptionPublicKey: () => shielded.shieldedEncryptionPublicKey,
-      async balanceTx(tx) {
-        const hex = toHex(tx.serialize());
-        const result = await api.balanceUnsealedTransaction(hex);
-        return Transaction.deserialize(
-          "signature",
-          "proof",
-          "binding",
-          fromHex(result.tx),
-        );
+    var shieldedAddrResult = await api.getShieldedAddresses();
+    log('Shielded address result: ' + JSON.stringify(shieldedAddrResult));
+
+    // Handle different shapes
+    var shieldedAddress = shieldedAddrResult;
+    if (shieldedAddrResult.shieldedAddress) {
+      shieldedAddress = shieldedAddrResult.shieldedAddress;
+    }
+    log('Shielded address object: ' + JSON.stringify(shieldedAddress));
+
+    var walletProvider = {
+      getCoinPublicKey: function() { return shieldedAddress.shieldedCoinPublicKey; },
+      getEncryptionPublicKey: function() { return shieldedAddress.shieldedEncryptionPublicKey; },
+      balanceTx: async function(tx) {
+        log('Balancing transaction (ProofStation sponsors fees)...');
+        var serialized = tx.serialize();
+        var hex = Array.from(serialized).map(function(b) {
+          return b.toString(16).padStart(2, '0');
+        }).join('');
+        var result = await api.balanceUnsealedTransaction(hex);
+        var bytes = new Uint8Array(result.tx.match(/.{2}/g).map(function(b) {
+          return parseInt(b, 16);
+        }));
+        return Transaction.deserialize('signature', 'proof', 'binding', bytes);
       },
     };
 
-    const midnightProvider = {
-      async submitTx(tx) {
-        const hex = toHex(tx.serialize());
+    var midnightProvider = {
+      submitTx: async function(tx) {
+        log('Submitting transaction to network...');
+        var serialized = tx.serialize();
+        var hex = Array.from(serialized).map(function(b) {
+          return b.toString(16).padStart(2, '0');
+        }).join('');
         await api.submitTransaction(hex);
         return tx.identifiers()[0];
       },
     };
 
+    log('All providers built', 'success');
     return {
-      publicDataProvider,
-      zkConfigProvider,
-      proofProvider,
-      walletProvider,
-      midnightProvider,
+      publicDataProvider: publicDataProvider,
+      zkConfigProvider: zkConfigProvider,
+      proofProvider: proofProvider,
+      walletProvider: walletProvider,
+      midnightProvider: midnightProvider,
     };
   }
 
-  // ===== Connect 1AM wallet =====
-  async function connect() {
+  // ── Build compiled contract ──
+  async function buildCompiledContract() {
+    log('Loading compact-js...');
+    var ccMod = await import('@midnight-ntwrk/compact-js');
+    var CompiledContract = ccMod.CompiledContract;
+    log('compact-js loaded, CompiledContract keys: ' + Object.keys(CompiledContract).join(', '));
+
+    log('Loading contract module...');
+    var contractModule = await import('../contracts/age_verification.contract.js');
+    var Contract = contractModule.Contract;
+    log('Contract class: ' + (Contract ? Contract.name : 'null'));
+
+    var ZK_BASE = '/contract/compiled/age_verification';
+    log('Building compiled contract (make + withCompiledFileAssets + withVacantWitnesses)...');
+
+    var cc = CompiledContract.make('age_verification', Contract);
+    log('make() done, type: ' + typeof cc);
+
+    var withAssets = CompiledContract.withCompiledFileAssets(ZK_BASE);
+    log('withCompiledFileAssets() done, type: ' + typeof withAssets);
+
+    var ccWithAssets = withAssets(cc);
+    log('withAssets(cc) done, type: ' + typeof ccWithAssets);
+
+    var compiled = CompiledContract.withVacantWitnesses(ccWithAssets);
+    log('withVacantWitnesses() done, type: ' + typeof compiled);
+    log('Compiled contract built', 'success');
+
+    return compiled;
+  }
+
+  // ── Deploy contract ──
+  async function deployContractHandler() {
+    log('=== Deploy clicked ===');
+    if (!connectedAPI) {
+      log('Please connect wallet first', 'error');
+      return;
+    }
+
     try {
-      log("[wallet] detecting 1AM...");
-      const wallet = await detectWallet();
-      if (!wallet) {
-        log("[wallet] 1AM extension not found. Install: https://chromewebstore.google.com/detail/1am/bphnkdkcnfhompoegfpgnkidcjfbojjp");
-        setWalletStatus("1AM wallet not detected");
-        return;
+      var compiledContract = await buildCompiledContract();
+
+      log('Loading midnight-js-contracts...');
+      var contractsMod = await import('@midnight-ntwrk/midnight-js-contracts');
+      log('midnight-js-contracts loaded, exports: ' + Object.keys(contractsMod).slice(0, 15).join(', '));
+
+      var providers = await buildProviders(connectedAPI);
+
+      log('Calling deployContract...');
+      log('providers keys: ' + Object.keys(providers).join(', '));
+
+      // Try passing compiledContract in options
+      var deployed;
+      try {
+        deployed = await contractsMod.deployContract(providers, {
+          compiledContract: compiledContract,
+        });
+      } catch (e1) {
+        log('deployContract with options failed: ' + e1.message, 'warn');
+        log('Trying with providers spread + compiledContract...');
+        deployed = await contractsMod.deployContract(
+          Object.assign({}, providers, { compiledContract: compiledContract }),
+          {}
+        );
       }
-      setWalletStatus("Connecting to " + NETWORK + "...");
-      api = await wallet.connect(NETWORK);
 
-      const config = await api.getConfiguration();
-      const addresses = await api.getShieldedAddresses();
-      const shieldedAddress =
-        addresses.shieldedAddress ?? addresses.address ?? "(shielded)";
+      contractAddress = deployed.deployTxData.publicContractAddress;
+      log('Contract deployed! Address: ' + contractAddress, 'success');
+      setStatus('wallet-status', 'Connected — Contract deployed');
+      var addrEl = document.getElementById('contract-address');
+      if (addrEl) addrEl.textContent = contractAddress;
 
-      setWalletStatus("Connected to " + config.networkId, shieldedAddress);
-      log("[wallet] connected to " + config.networkId);
-      log("[wallet] shielded: " + shieldedAddress);
-
-      // Hint usage (KageVote pattern — tells the wallet which APIs we'll call)
-      if (typeof api.hintUsage === "function") {
-        await api.hintUsage([
-          "getConfiguration",
-          "getShieldedAddresses",
-          "getProvingProvider",
-          "balanceUnsealedTransaction",
-          "submitTransaction",
-        ]);
-        log("[wallet] hintUsage sent");
+      // Try to get verified count
+      try {
+        var states = await contractsMod.getPublicStates(providers, compiledContract, contractAddress);
+        log('Public states: ' + JSON.stringify(states), 'success');
+        var countEl = document.getElementById('verified-count');
+        if (countEl && states && states.verifiedCount) {
+          countEl.textContent = String(states.verifiedCount);
+        }
+      } catch (e2) {
+        log('getPublicStates failed: ' + e2.message, 'warn');
       }
-
-      log("[providers] building providers...");
-      providers = await buildProviders();
-      compiledContract = buildCompiledContract();
-      log("[providers] ready");
-      log("[contract] compiled contract built");
-      enable("deploy-btn", true);
     } catch (err) {
-      log("[wallet] ERROR: " + (err?.message ?? err));
-      setWalletStatus("Connection failed");
+      log('Deploy error: ' + err.message, 'error');
+      if (err.stack) log('Stack: ' + err.stack, 'error');
+      setStatus('wallet-status', 'Connected — Deploy failed');
     }
   }
 
-  // ===== Deploy =====
-  async function deploy() {
+  // ── Call verifyAge ──
+  async function callVerifyAge() {
+    log('=== Call verifyAge clicked ===');
+    if (!connectedAPI) {
+      log('Please connect wallet first', 'error');
+      return;
+    }
+    if (!contractAddress) {
+      log('Please deploy contract first', 'error');
+      return;
+    }
+
     try {
-      enable("deploy-btn", false);
-      log("[deploy] deploying AgeVerification contract...");
-      const deployed = await deployContract(providers, {
-        compiledContract,
-      });
-      contractAddress = deployed.deployTxData.public.contractAddress;
-      document.getElementById("contract-address").textContent = contractAddress;
-      log("[deploy] SUCCESS");
-      log("[deploy] contract address: " + contractAddress);
-      log("[deploy] tx: " + (deployed.deployTxData.public.txId ?? "(see wallet)"));
-      enable("verify-btn", true);
-      enable("copy-addr-btn", true);
+      var compiledContract = await buildCompiledContract();
+
+      log('Loading midnight-js-contracts...');
+      var contractsMod = await import('@midnight-ntwrk/midnight-js-contracts');
+
+      var providers = await buildProviders(connectedAPI);
+
+      log('Available contract functions: ' + Object.keys(contractsMod).filter(function(k) {
+        return /call|tx|submit/i.test(k);
+      }).join(', '));
+
+      // Try submitCallTx with different option shapes
+      log('Creating call transaction for verifyAge circuit...');
+
+      // Get the circuit ID from the compiled contract
+      var circuitIds = contractsMod.getProvableCircuitIds ? contractsMod.getProvableCircuitIds(compiledContract) : [];
+      log('Circuit IDs: ' + JSON.stringify(circuitIds));
+
+      var callOptions = {
+        contractAddress: contractAddress,
+      };
+
+      // Try to set the circuit — the compiled contract should have circuit info
+      log('Attempting submitCallTx...');
+      var result = await contractsMod.submitCallTx(providers, callOptions);
+      log('Call succeeded! Result: ' + JSON.stringify(result), 'success');
+
+      // Update verified count
+      try {
+        var states = await contractsMod.getPublicStates(providers, compiledContract, contractAddress);
+        log('Updated states: ' + JSON.stringify(states), 'success');
+        var countEl = document.getElementById('verified-count');
+        if (countEl && states && states.verifiedCount) {
+          countEl.textContent = String(states.verifiedCount);
+        }
+      } catch (e) {
+        log('getPublicStates failed: ' + e.message, 'warn');
+      }
     } catch (err) {
-      log("[deploy] ERROR: " + (err?.message ?? err));
-      enable("deploy-btn", true);
+      log('Call error: ' + err.message, 'error');
+      if (err.stack) log('Stack: ' + err.stack, 'error');
     }
   }
 
-  // ===== Call verifyAge =====
-  async function verifyAge() {
-    try {
-      enable("verify-btn", false);
-      log("[call] submitting verifyAge...");
-      const result = await submitCallTx(providers, {
-        compiledContract,
-        contractAddress,
-        circuitId: "verifyAge",
-        args: [],
-      });
-      const txId =
-        result?.callTxData?.public?.txId ??
-        result?.public?.txId ??
-        "(see wallet)";
-      log("[call] SUCCESS — tx: " + txId);
-      // Increment local counter display (on-chain read would need getPublicStates)
-      const counterEl = document.getElementById("counter-value");
-      const current = parseInt(counterEl.textContent) || 0;
-      counterEl.textContent = String(current + 1);
-      log("[call] verifiedCount incremented");
-      enable("verify-btn", true);
-    } catch (err) {
-      log("[call] ERROR: " + (err?.message ?? err));
-      enable("verify-btn", true);
+  // ── Copy address ──
+  function copyAddress() {
+    if (contractAddress) {
+      navigator.clipboard.writeText(contractAddress);
+      log('Address copied to clipboard', 'success');
+    } else {
+      log('No contract address to copy', 'warn');
     }
   }
 
-  // ===== Wire up buttons =====
-  document.getElementById("connect-btn").addEventListener("click", connect);
-  document.getElementById("deploy-btn").addEventListener("click", deploy);
-  document.getElementById("verify-btn").addEventListener("click", verifyAge);
-  document.getElementById("copy-addr-btn").addEventListener("click", () => {
-    if (contractAddress) navigator.clipboard.writeText(contractAddress);
-  });
+  // ── Init — NO IMPORTS NEEDED HERE ──
+  console.log('[opalite] Contracts page script loaded (no top-level imports)');
 
-  log("[init] Opalite contracts page loaded. Click \"Connect 1AM\" to begin.");
+  var connectBtn = document.getElementById('connect-btn');
+  var deployBtn = document.getElementById('deploy-btn');
+  var callBtn = document.getElementById('call-btn');
+  var copyBtn = document.getElementById('copy-btn');
+
+  if (connectBtn) connectBtn.addEventListener('click', connectWallet);
+  if (deployBtn) deployBtn.addEventListener('click', deployContractHandler);
+  if (callBtn) callBtn.addEventListener('click', callVerifyAge);
+  if (copyBtn) copyBtn.addEventListener('click', copyAddress);
+
+  log('Page loaded. Click "Connect 1AM" to begin.');
+  log('window.midnight: ' + (window.midnight ? 'exists' : 'not found'));
+
+  if (window.midnight) {
+    log('window.midnight keys: ' + Object.keys(window.midnight).join(', '));
+  } else {
+    log('1AM extension not detected. Install from Chrome Web Store.', 'warn');
+  }
 </script>
