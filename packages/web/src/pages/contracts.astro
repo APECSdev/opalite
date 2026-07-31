@@ -14,9 +14,14 @@ import Base from '../layouts/Base.astro';
     <div class="bg-gray-900 rounded-lg p-6 mb-6">
       <h2 class="text-xl font-semibold mb-3">Wallet</h2>
       <p id="wallet-status" class="text-gray-400 mb-3">Not connected</p>
-      <button id="connect-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
-        Connect 1AM
-      </button>
+      <div class="flex gap-3">
+        <button id="connect-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+          Connect 1AM
+        </button>
+        <button id="sync-check-btn" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
+          Check sync
+        </button>
+      </div>
     </div>
 
     <!-- Contract Section -->
@@ -224,7 +229,7 @@ import Base from '../layouts/Base.astro';
 
     var zkMod = await import('@midnight-ntwrk/midnight-js-fetch-zk-config-provider');
     var zkConfigProvider = new zkMod.FetchZkConfigProvider(
-      '/contract/compiled/age_verification',
+      window.location.origin + '/contract/compiled/age_verification',
       fetch.bind(window),
     );
     log('zkConfigProvider created');
@@ -250,7 +255,23 @@ import Base from '../layouts/Base.astro';
       },
     };
 
-    var shieldedAddrResult = await api.getShieldedAddresses();
+    var shieldedAddrResult = null;
+    for (var attempt = 1; attempt <= 60; attempt++) {
+      try {
+        shieldedAddrResult = await api.getShieldedAddresses();
+        log('getShieldedAddresses() succeeded on attempt ' + attempt, 'success');
+        break;
+      } catch (e) {
+        log('getShieldedAddresses() attempt ' + attempt + '/60: ' + e.message, 'warn');
+        if (attempt < 60) {
+          log('Waiting 15s for wallet sync to finish...', 'warn');
+          await new Promise(function(r) { setTimeout(r, 15000); });
+        }
+      }
+    }
+    if (!shieldedAddrResult) {
+      throw new Error('Cannot get shielded addresses — wallet still syncing after 15 minutes. Please wait for 1AM to finish syncing and try again.');
+    }
     log('Shielded address result: ' + JSON.stringify(shieldedAddrResult));
 
     // Handle different shapes
@@ -456,6 +477,34 @@ import Base from '../layouts/Base.astro';
     }
   }
 
+  // ── Check sync status ──
+  async function checkSync() {
+    log('=== Check sync clicked ===');
+    if (!connectedAPI) {
+      log('Not connected. Click Connect first.', 'error');
+      return;
+    }
+    try {
+      if (typeof connectedAPI.getConnectionStatus === 'function') {
+        var status = await connectedAPI.getConnectionStatus();
+        log('Connection status: ' + JSON.stringify(status), 'success');
+      } else {
+        log('getConnectionStatus not available', 'warn');
+      }
+      // Also try getShieldedAddresses to see if sync is done
+      try {
+        var addrs = await connectedAPI.getShieldedAddresses();
+        log('getShieldedAddresses() works now! Wallet is synced.', 'success');
+        log('Shielded addresses: ' + JSON.stringify(addrs), 'success');
+      } catch (e) {
+        log('getShieldedAddresses() still failing: ' + e.message, 'warn');
+        log('Wallet is still syncing. Keep waiting.', 'warn');
+      }
+    } catch (err) {
+      log('Check sync error: ' + err.message, 'error');
+    }
+  }
+
   // ── Init — NO IMPORTS NEEDED HERE ──
   console.log('[opalite] Contracts page script loaded (no top-level imports)');
 
@@ -468,6 +517,8 @@ import Base from '../layouts/Base.astro';
   if (deployBtn) deployBtn.addEventListener('click', deployContractHandler);
   if (callBtn) callBtn.addEventListener('click', callVerifyAge);
   if (copyBtn) copyBtn.addEventListener('click', copyAddress);
+  var syncBtn = document.getElementById('sync-check-btn');
+  if (syncBtn) syncBtn.addEventListener('click', checkSync);
 
   log('Page loaded. Click "Connect 1AM" to begin.');
   log('window.midnight: ' + (window.midnight ? 'exists' : 'not found'));
