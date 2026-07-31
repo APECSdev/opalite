@@ -31,7 +31,6 @@ import { HDWallet, Roles, generateRandomSeed } from '@midnight-ntwrk/wallet-sdk-
 import { ShieldedWallet } from '@midnight-ntwrk/wallet-sdk-shielded';
 import {
   createKeystore,
-  InMemoryTransactionHistoryStorage,
   PublicKey,
   UnshieldedWallet,
   type UnshieldedKeystore,
@@ -268,7 +267,6 @@ const buildUnshieldedConfig = ({ indexer, indexerWS }: Config) => ({
     indexerHttpUrl: indexer,
     indexerWsUrl: indexerWS,
   },
-  txHistoryStorage: new InMemoryTransactionHistoryStorage(),
 });
 
 const buildDustConfig = ({ indexer, indexerWS, node, proofServer }: Config) => ({
@@ -468,6 +466,20 @@ export const buildWalletAndWaitForFunds = async (config: Config, seed: string): 
           DustWallet(cfg).startWithSecretKey(dustSecretKey, ledger.LedgerParameters.initialParameters().dust),
       });
       await wallet.start(shieldedSecretKeys, dustSecretKey);
+      const bigIntSafe = (k: any, v: any) =>
+        typeof v === 'bigint' ? v.toString() : v;
+      const logState = (name: string, s: any, n: number) => {
+        if (n === 1 || n % 20 === 0)
+          console.log('  [sync]', name,
+            JSON.stringify(s?.progress ?? s, bigIntSafe));
+      };
+      let ns = 0, nu = 0, nd = 0;
+      wallet.shielded?.state?.subscribe((s: any) =>
+        logState('shielded', s, ++ns));
+      wallet.unshielded?.state?.subscribe((s: any) =>
+        logState('unshielded', s, ++nu));
+      wallet.dust?.state?.subscribe((s: any) =>
+        logState('dust', s, ++nd));
 
       return { wallet, shieldedSecretKeys, dustSecretKey, unshieldedKeystore };
     },
