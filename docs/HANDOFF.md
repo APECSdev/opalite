@@ -67,7 +67,7 @@ Contract: written, compiled, tested, documented, committed, pushed. Deploy CLI: 
 
 2. **If crashed, resume (same command, same seed):**
    ```
-   cd /Workspace/apecsdev/opalite-love/deploy-cli
+   cd /Workspace/apecsdev/opalite/deploy-cli
    nvm use 24
    docker compose -f proof-server.yml up -d
    NODE_OPTIONS='--max-old-space-size=10240' npx tsx src/preprod.ts 2>&1 | tee /tmp/sync-run5.log
@@ -97,7 +97,7 @@ Contract: written, compiled, tested, documented, committed, pushed. Deploy CLI: 
 ```
 # Ensure Node 24
 nvm use 24
-cd /Workspace/apecsdev/opalite-love
+cd /Workspace/apecsdev/opalite
 
 # Check proof server
 docker ps --filter name=proof-server

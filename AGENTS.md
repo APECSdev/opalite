@@ -6,7 +6,7 @@
 
 ## Project Overview
 - **Project:** Opalite Love - Privacy-Preserving Dating on Midnight Network
-- **Repo:** `/Workspace/apecsdev/opalite-love`
+- **Repo:** `/Workspace/apecsdev/opalite`
 - **GitHub:** https://github.com/APECSdev/opalite-love (currently PRIVATE, goes public after deployment)
 - **Live URL:** https://opalite.love
 - **Hackathon:** Rise In - New Moon to Full: Monthly Moonshots on Midnight
