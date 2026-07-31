@@ -69,3 +69,5 @@ jspm_packages/
 # Secrets and wallet seeds
 .secrets
 *.seed
+deploy-cli/wallet-state.json
+deploy-cli/wallet-state.json.tmp
