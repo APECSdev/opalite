@@ -1,4 +1,3 @@
-import * as fs from 'fs';
 // This file is part of midnightntwrk/example-counter.
 // Copyright (C) Midnight Foundation
 // SPDX-License-Identifier: Apache-2.0
@@ -27,6 +26,7 @@ import { indexerPublicDataProvider } from '@midnight-ntwrk/midnight-js-indexer-p
 import { NodeZkConfigProvider } from '@midnight-ntwrk/midnight-js-node-zk-config-provider';
 import { type FinalizedTxData, type MidnightProvider, type WalletProvider } from '@midnight-ntwrk/midnight-js/types';
 import { WalletFacade } from '@midnight-ntwrk/wallet-sdk-facade';
+import { loadSavedWalletState, startCheckpointTimer, makeTxHistoryStorage } from './persistence.js';
 import { DustWallet } from '@midnight-ntwrk/wallet-sdk-dust-wallet';
 import { HDWallet, Roles, generateRandomSeed } from '@midnight-ntwrk/wallet-sdk-hd';
 import { ShieldedWallet } from '@midnight-ntwrk/wallet-sdk-shielded';
@@ -458,84 +458,29 @@ export const buildWalletAndWaitForFunds = async (config: Config, seed: string): 
         ...buildShieldedConfig(config),
         ...buildUnshieldedConfig(config),
         ...buildDustConfig(config),
+        txHistoryStorage: makeTxHistoryStorage(),
       };
+      const saved = loadSavedWalletState();
       const wallet = await WalletFacade.init({
         configuration: walletConfig,
-        shielded: (cfg) => ShieldedWallet(cfg).startWithSecretKeys(shieldedSecretKeys),
-        unshielded: (cfg) => UnshieldedWallet(cfg).startWithPublicKey(PublicKey.fromKeyStore(unshieldedKeystore)),
+        shielded: (cfg) =>
+          saved
+            ? ShieldedWallet(cfg).restore(saved.shielded)
+            : ShieldedWallet(cfg).startWithSecretKeys(shieldedSecretKeys),
+        unshielded: (cfg) =>
+          saved
+            ? UnshieldedWallet(cfg).restore(saved.unshielded)
+            : UnshieldedWallet(cfg).startWithPublicKey(PublicKey.fromKeyStore(unshieldedKeystore)),
         dust: (cfg) =>
-          DustWallet(cfg).startWithSecretKey(dustSecretKey, ledger.LedgerParameters.initialParameters().dust),
+          saved
+            ? DustWallet(cfg).restore(saved.dust)
+            : DustWallet(cfg).startWithSecretKey(
+                dustSecretKey,
+                ledger.LedgerParameters.initialParameters().dust,
+              ),
       });
       await wallet.start(shieldedSecretKeys, dustSecretKey);
-
-// ============ PERSISTENCE PROBE (temporary, Session 10) ============
-let __emissions = 0;
-let __latestState: any = null;
-const __big = (_k: string, v: any) =>
-  typeof v === 'bigint' ? v.toString() + 'n' : v;
-const __shape = (o: any, d = 0): any => {
-  if (o === null || o === undefined) return String(o);
-  if (typeof o === 'bigint') return 'bigint';
-  if (typeof o !== 'object') return typeof o;
-  if (d > 5) return '...';
-  if (Array.isArray(o))
-    return { type: 'array', length: o.length, first: __shape(o[0], d + 1) };
-  const out: any = {};
-  for (const k of Object.keys(o)) out[k] = __shape(o[k], d + 1);
-  return out;
-};
-const __methods = (obj: any): string[] => {
-  const names = new Set<string>();
-  let cur = obj;
-  while (cur && cur !== Object.prototype) {
-    for (const n of Object.getOwnPropertyNames(cur)) names.add(n);
-    cur = Object.getPrototypeOf(cur);
-  }
-  return [...names].sort();
-};
-// Enumerate wallet API surface once
-try {
-  const m = __methods(wallet as any);
-  fs.writeFileSync('/tmp/wallet-state-methods.json',
-    JSON.stringify({ methods: m }, null, 2));
-  console.log('[PROBE] wallet methods dumped:', m.length);
-} catch (e) { console.log('[PROBE] method dump failed', e); }
-// State subscription: structure on 1st, checkpoint every 500th
-(wallet as any).state().subscribe((s: any) => {
-  __emissions += 1;
-  __latestState = s;
-  if (__emissions === 1) {
-    try {
-      fs.writeFileSync('/tmp/wallet-state-structure.json',
-        JSON.stringify({ emissionShape: __shape(s) }, __big, 2));
-      console.log('[PROBE] state structure dumped');
-    } catch (e) { console.log('[PROBE] structure dump failed', e); }
-  }
-  if (__emissions % 500 === 0) {
-    try {
-      fs.writeFileSync('/tmp/wallet-state-checkpoint.json',
-        JSON.stringify(__latestState, __big));
-      console.log('[PROBE] checkpoint @ emission', __emissions);
-    } catch (e) { console.log('[PROBE] checkpoint failed', e); }
-  }
-});
-// Graceful shutdown: ALWAYS dump latest state before exit
-const __graceful = () => {
-  try {
-    if (__latestState) {
-      fs.writeFileSync('/tmp/wallet-state-final.json',
-        JSON.stringify(__latestState, __big));
-      const sz = fs.statSync('/tmp/wallet-state-final.json').size;
-      console.log('[PROBE] FINAL state dumped,', sz, 'bytes,',
-        __emissions, 'emissions');
-    }
-  } catch (e) { console.log('[PROBE] final dump failed', e); }
-  finally { process.exit(0); }
-};
-process.on('SIGINT', __graceful);
-process.on('SIGTERM', __graceful);
-// ============ END PERSISTENCE PROBE ============
-
+      const stopCheckpointing = startCheckpointTimer(wallet, 60_000);
       const bigIntSafe = (k: any, v: any) =>
         typeof v === 'bigint' ? v.toString() : v;
       const logState = (name: string, s: any, n: number) => {
