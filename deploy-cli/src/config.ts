@@ -3,6 +3,7 @@ import { setNetworkId } from '@midnight-ntwrk/midnight-js/network-id';
 export const currentDir = path.resolve(new URL(import.meta.url).pathname, '..');
 
 export const contractConfig = {
+  midnightDbName: 'opalite-love-preprod-wallet',
   privateStateStoreName: 'age-verification-private-state',
   zkConfigPath: path.resolve(currentDir, '..', '..', 'packages', 'contracts', 'src', 'managed', 'age_verification'),
 };

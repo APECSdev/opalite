@@ -550,6 +550,7 @@ export const configureProviders = async (ctx: WalletContext, config: Config) => 
   const storagePassword = `${Buffer.from(accountId, 'hex').toString('base64')}!`;
   return {
     privateStateProvider: levelPrivateStateProvider<typeof AgeVerificationPrivateStateId>({
+      midnightDbName: contractConfig.midnightDbName,
       privateStateStoreName: contractConfig.privateStateStoreName,
       accountId,
       privateStoragePasswordProvider: () => storagePassword,
