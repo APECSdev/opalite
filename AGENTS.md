@@ -68,6 +68,50 @@ is progressing.
 -`common-types.ts`   — type definitions
 -`logger-utils.ts`   — pino logger setup
 
+
+### RELIABLE SYNC MONITOR (verified approach, Session 12)
+
+Do NOT parse wallet-state.json for progress — its internal structure is
+unknown (top-level keys version/savedAt/shielded/unshielded/dust, with each
+field being stringified JSON; appliedIndex was NOT found in the dust field
+by recursive search — the serialized state stores progress differently).
+
+Instead, capture Terminal 1's stdout, which prints lines in a KNOWN format:
+    dust {"appliedIndex":"131738","highestRelevantWalletIndex":"1362820",...}
+
+Terminal 1 (log to file via tee):
+    cd /Workspace/apecsdev/opalite/deploy-cli
+    NODE_OPTIONS="--max-old-space-size=10240" npx tsx src/preprod.ts 2>&1 | tee /tmp/opalite-sync.log
+
+Terminal 2 (parse the log):
+    PREV_A=0
+    while true; do
+      clear
+      echo "=== $(date) ==="
+      LINE=$(grep -o 'dust {"appliedIndex":"[0-9]*","highestRelevantWalletIndex":"[0-9]*"' /tmp/opalite-sync.log | tail -1)
+      A=$(echo "$LINE" | grep -oP '"appliedIndex":"\K[0-9]+')
+      T=$(echo "$LINE" | grep -oP '"highestRelevantWalletIndex":"\K[0-9]+')
+      if [ -n "$A" ] && [ -n "$T" ]; then
+        REMAIN=$((T - A))
+        PCT=$(awk "BEGIN{printf \"%.2f\", $A/$T*100}")
+        if [ "$PREV_A" -gt 0 ] && [ "$A" -gt "$PREV_A" ]; then
+          RATE=$(( (A - PREV_A) / 10 ))
+          [ "$RATE" -gt 0 ] && echo "Rate: ~${RATE} blocks/sec | ETA: ~$(awk "BEGIN{printf \"%.1f\", $REMAIN/$RATE/3600}") hours"
+        fi
+        PREV_A=$A
+        echo "Blocks indexed:  $A"
+        echo "Total blocks:    $T"
+        echo "Remaining:       $REMAIN"
+        echo "Progress: ${PCT}%"
+      else
+        echo "No sync lines in log yet."
+      fi
+      ps aux | grep 'tsx.*preprod' | grep -v grep > /dev/null && echo "Status: RUNNING" || echo "Status: *** NOT RUNNING ***"
+      sleep 10
+    done
+
+Note: total (~1,362,820) can also grow slightly as the chain produces new blocks.
+
 ### Lesson learned
 
 The previous AGENTS/HANDOFF said "npx tsx src/cli.ts sync" — that was WRONG.
