@@ -127,8 +127,8 @@ points against package.json scripts before documenting commands.
 - **Local dir:** /Workspace/apecsdev/opalite
 - **Domain:** opalite.social (registered, canonical). Legacy: opalite.love.
 - **Hackathon:** Rise In - New Moon to Full: Monthly Moonshots on Midnight
-- **Current Level:** Level 1 - New Moon. Contract DEPLOYED to preprod. 2 age verifications confirmed on-chain. Ready for hackathon submission.
-- **DEADLINE:** Level 1 submission IN PROGRESS. Contract deployed + verified. Remaining: screenshots, repo public, Codecov, final commit.
+- **Current Level:** Level 1 - New Moon. Contract DEPLOYED to preprod. 2 age verifications confirmed on-chain. Submission attempted — Rise In shows "Program is complete, cannot make changes." Contacting Rise In team directly for org repo submission guidance.
+- **DEADLINE:** Level 1 submission BLOCKED by Rise In platform. Fork created (nyusternie/opalite) as workaround but same error. Contacting Rise In team. Repo is public, screenshots live, contract verified.
 
 ## Solved Issues (DO NOT RE-DIAGNOSE)
 1. Terminal Paste Munging: Use`python3 << 'PYEOF'` to write files. Heredocs get corrupted by terminal paste.
@@ -183,6 +183,7 @@ points against package.json scripts before documenting commands.
 50. **LOCAL DEPLOY CLI — SUCCESS**: Dust sync completed. Contract deployed to preprod via local CLI + Docker proof server. Contract address: 7842c12a360192c4505a002cf54a26904d7791589244a8161fb22d34c40a4199. Two age verifications confirmed on-chain (blocks 1917094, 1917099). Verified count: 2.
 
 51. **DEPLOYMENT COMPLETE (Session 13)**: Contract deployed to preprod. Address: 7842c12a360192c4505a002cf54a26904d7791589244a8161fb22d34c40a4199. Two verifyAge() calls confirmed on-chain (blocks 1917094, 1917099). Verified count: 2. Proof server (Docker, port 6300) used for deploy + call. README + cli.ts rebranded (Opalite Love -> Opalite).
+52. **SUBMISSION — RISE IN BLOCKED (Session 14)**: Rise In platform shows "Program is complete — cannot make changes" error. Created fork nyusternie/opalite as workaround — same error. Rise In OAuth app only requests "Access public information" scope (no read:org), so org repos (APECSdev/opalite) don't appear in the submission dropdown. Org had "Access restricted" policy — removed restrictions, revoked + re-authorized Rise In OAuth — still no org repos visible. Will contact Rise In team directly for guidance on submitting from a GitHub organization. Repo is public, 49 commits, contract deployed + verified, screenshots live, README complete.
 ## Tech Stack
 - Node.js v24.18.1 LTS (nvm, .nvmrc=24)
 - TypeScript runner: tsx v4.23.1

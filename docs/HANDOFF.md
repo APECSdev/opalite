@@ -1,52 +1,41 @@
-# HANDOFF — Session 14
+# HANDOFF — Session 15
 
-## STATUS: Deployment COMPLETE. Submission IN PROGRESS.
+## STATUS: Submission BLOCKED by Rise In platform. Contacting team.
 
-## What Was Accomplished (Session 13)
-- Dust wallet sync completed (full ~1.36M chain)
-- Age verification contract DEPLOYED to preprod
-- Two verifyAge() calls confirmed on-chain
-- README + cli.ts rebranded (Opalite Love -> Opalite)
-- AGENTS.md updated with deployment results (issue 51)
+## What Was Accomplished (Session 14)
+- README + cli.ts fully rebranded (Opalite Love -> Opalite, social network)
+- Deployment screenshots added to README (compile-and-tests, deploy)
+- LICENSE changed to MIT (Copyright 2026 APECS Dev)
+- CODECOV_TOKEN added to GitHub secrets (4da82909...)
+- GitHub topics cleaned (removed "dating", added zero-knowledge, midnight-network)
+- Fork created at nyusternie/opalite as submission workaround
+- Rise In blocked: "Program is complete — cannot make changes"
 
-## Deployment Results
+## The Submission Problem
+- Rise In OAuth app only requests "Access public information (read-only)" — no read:org scope
+- APECSdev org had "Access restricted" policy — removed, still didn't help
+- Revoked + re-authorized Rise In OAuth — still no org repos in dropdown
+- Forked to nyusternie/opalite — same "Program is complete" error
+- **Resolution:** Contact Rise In team directly for org repo submission guidance
+
+## Contract Details (for Rise In submission)
 - **Contract address:** 7842c12a360192c4505a002cf54a26904d7791589244a8161fb22d34c40a4199
 - **Verify tx 1:** 003b2f9fd149154f3e555607df20c0482c7ecf4140d29ea0ad3951749218c7e231 (block 1917094)
 - **Verify tx 2:** 00806c785a67a6ff79251a9f48c655d99c513ebebe1154a8bde5266d2ac2e6c763 (block 1917099)
 - **Verified count:** 2
+- **Repo:** https://github.com/APECSdev/opalite
+- **Seed:** c99dc572d08a9797d83069d87e4eaa88234f4b70a7c20ba51f40d4bb91576d21
 
-## Remaining Tasks for Level 1 Submission
-1. **Screenshots** — Take fresh screenshots after rebrand, save to `docs/screenshots/`:
-   - `compile.png` — compact compile output
-   - `test.png` — pnpm test output (3 tests passing + rebranded BANNER)
-   - `deploy.png` — CLI output with contract address + verified count
-2. **Repo public** — Ensure github.com/APECSdev/opalite is public
-3. **Codecov** — Add Codecov integration (badge already in README)
-4. **Final commit** — Commit screenshots + any remaining changes
-5. **Submit** — Submit to Rise In hackathon platform
-
-## Key Commands
-```bash
-# Run tests (shows rebranded BANNER)
-cd /Workspace/apecsdev/opalite/packages/contracts && pnpm test
-
-# Compile contract (for screenshot)
-cd /Workspace/apecsdev/opalite/packages/contracts && compact compile src/age_verification.compact src/managed/age_verification
-
-# Start deploy CLI (to show deployed contract)
-cd /Workspace/apecsdev/opalite/deploy-cli && npx tsx src/preprod.ts
-# Choose <a href="https://blog.bookbaby.com/how-to-write/writing-tips/submissions" target="_blank" rel="noopener noreferrer" data-web-search-citation="true" data-web-search-result-index="1" aria-label="Source 2: What NOT to do when waiting for a response to your literary submission">[2]</a> Restore wallet from seed
-# Paste seed: c99dc572d08a9797d83069d87e4eaa88234f4b70a7c20ba51f40d4bb91576d21
-# After sync: <a href="https://blog.bookbaby.com/how-to-write/writing-tips/submissions" target="_blank" rel="noopener noreferrer" data-web-search-citation="true" data-web-search-result-index="1" aria-label="Source 2: What NOT to do when waiting for a response to your literary submission">[2]</a> Join existing contract
-# Paste address: 7842c12a360192c4505a002cf54a26904d7791589244a8161fb22d34c40a4199
-# <a href="https://blog.bookbaby.com/how-to-write/writing-tips/submissions" target="_blank" rel="noopener noreferrer" data-web-search-citation="true" data-web-search-result-index="1" aria-label="Source 2: What NOT to do when waiting for a response to your literary submission">[2]</a> Display current verified count
-```
+## Next Steps
+1. Contact Rise In (Discord/support) — ask how to submit from a GitHub org
+2. Provide contract address + repo link + screenshots
+3. Once submitted, update AGENTS.md + HANDOFF.md with final status
 
 ## DO NOT
-- DO NOT re-sync the wallet — sync is COMPLETE
-- DO NOT deploy a new contract — use the existing one (address above)
-- DO NOT change midnightDbName in config.ts — would orphan private state
-- DO NOT re-diagnose solved issues (see AGENTS.md issues 1-51)
+- DO NOT re-deploy the contract (existing one is verified)
+- DO NOT re-sync the wallet (state is persisted)
+- DO NOT change midnightDbName in config.ts
+- DO NOT transfer the repo to a personal account (canonical repo is org)
 
 ## Preprod Seed
 c99dc572d08a9797d83069d87e4eaa88234f4b70a7c20ba51f40d4bb91576d21
