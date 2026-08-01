@@ -1,10 +1,13 @@
-# HANDOFF - Opalite Love (Session 10 Final -> Fresh Session)
+# HANDOFF - Opalite (Session 12 -> Fresh Session)
 
-## STATUS: LEVEL 1 NEW MOON - ONE STEP LEFT AFTER DUST SYNC
+## STATUS: PIVOTED BACK TO LOCAL DEPLOY CLI — SYNCING DUST WALLET
 
-Contract: written, compiled, tested, documented, committed, pushed. Deploy CLI: built with wallet persistence. README: enhanced. Wallet: funded with 1000 tNight (pending in-wallet confirmation). All code pushed to GitHub.
+All three alternative deployment options FAILED:
+1. **1AM wallet extension** — server-side indexer bug (zswap commitment tree corruption). Sync stuck at 99% forever. ABANDONED.
+2. **build.1am.xyz** — requires Google sign-in, just an AI prompt tool. NO-GO.
+3. **zkmint.1am.xyz** — meme coin launchpad, not for custom contracts. NOT SUITABLE.
 
-**THE ONLY BLOCKER: dust wallet sync still running (~52,765 / ~1,359,737 = 3.9% at last measurement). It is checkpointed, so just keep re-running the sync command after any crash/reboot until dust reports synced. Then deploy.**
+We are back to the original plan: sync the local dust wallet to completion, then deploy via local CLI + Docker proof server.
 
 ### Level 1 Submission Checklist
 
@@ -14,149 +17,201 @@ Contract: written, compiled, tested, documented, committed, pushed. Deploy CLI: 
 | Contract compiles | DONE |
 | Passing test suite | DONE - 3 tests pass |
 | managed/ directory | DONE |
-| 5 meaningful commits | DONE - 20+ commits pushed |
-| Product idea in README | DONE |
+| 5 meaningful commits | DONE - 20+ commits |
+| Product idea in README | DONE (narrative rebrand pending) |
 | Setup instructions | DONE |
 | Public vs private witness | DONE |
 | Compile screenshot | DONE |
-| Deploy CLI built | DONE - self-contained, current SDK gen, with persistence |
-| Wallet created | DONE - seed in .secrets |
-| Proof server running | DONE - Docker port 6300 |
-| Wallet funded from faucet | DONE - 1000 tNight via Nethermind faucet (tx 00bc56d9...654fed) |
-| Wallet syncs with network | IN PROGRESS - shielded DONE, unshielded DONE, dust ~4% (checkpointed, resume loop) |
-| Contract deployed | NOT DONE - blocked on dust sync |
+| Deploy CLI built | DONE (with persistence) |
+| Wallet created | DONE (seed in .secrets) |
+| Proof server running | DONE (Docker, for deploy) |
+| Wallet funded | DONE - 1000 tNight via Nethermind faucet (pending in-wallet confirmation) |
+| Wallet syncs with network | IN PROGRESS - shielded+unshielded DONE, dust at 14% (resuming) |
+| Contract deployed | NOT DONE -- waiting for dust sync |
 | Deploy screenshot | NOT DONE |
-| Repo made public | NOT DONE - after deployment |
-| Codecov added | NOT DONE - after repo is public |
+| Repo made public | NOT DONE -- after deployment |
+| Codecov added | NOT DONE -- after repo is public |
 
-### Session 10 Summary (The Persistence Breakthrough)
+### Session 12 Summary
 
-**Accomplished:**
-1. Discovered the wallet SDK has native serialize/restore: `serializeState(): Promise<string>` on each sub-wallet API, and `ShieldedWallet(cfg).restore(serialized)` / same for dust + unshielded.
-2. Confirmed `CoreWallet.restore` includes `syncProgress` (appliedIndex etc.) - so restoring RESUMES sync where it left off, not from genesis.
-3. Found `InMemoryTransactionHistoryStorage` moved to `@midnight-ntwrk/wallet-sdk-abstractions@2.1.0` (removed from unshielded-wallet 3.1.0). Re-added to facade config.
-4. Wrote `deploy-cli/src/persistence.ts`: load/save/checkpoint timer (60s) + adaptive `makeTxHistoryStorage()` factory.
-5. Patched `deploy-cli/src/api.ts`: import persistence, load saved state before `WalletFacade.init`, swap factory functions to `.restore(saved)` when state exists, start checkpoint timer after `wallet.start()`, inject `txHistoryStorage` into walletConfig.
-6. PROVEN: Run 3 OOM'd at appliedIndex 995,261 (73%) with checkpoints saving. Run 4 restored at 994,424 and completed shielded sync to the live tip. Checkpoint files stayed 172-306KB (live state tiny; 8.6GB OOM was transient garbage).
-7. Found Nethermind alternate faucet (https://midnight-tmnight-preprod.nethermind.dev/) after official faucet errored. Successfully funded 1000 tNight.
-8. Committed and pushed all persistence work.
+**Attempted:**
+1. Explored 1AM wallet as deployment path (zero dust, zero NIGHT, ProofStation sponsors fees).
+2. Installed 1AM Chrome extension, connected to preprod successfully.
+3. Built contracts.astro page on opalite.social with 1AM wallet integration UI.
+4. Fixed FetchZkConfigProvider URL (relative → absolute).
+5. Added retry loop for getShieldedAddresses() (60 attempts × 15s).
+6. Discovered 1AM wallet sync stuck at 99% — diagnosed as zswap commitment tree corruption.
+7. Performed full storage wipe (IndexedDB, LocalStorage, Service Worker, Cache, Extension State, Extensions dir).
+8. Killed Chromium, restarted, created new wallet — SAME ERROR. Bug is server-side (1AM indexer).
+9. Checked build.1am.xyz — requires Google sign-in, AI prompt tool only. NO-GO.
+10. Checked zkmint.1am.xyz — meme coin launchpad. NOT SUITABLE.
+11. PIVOTED: resumed local wallet sync via deploy-cli.
 
-**Sync history (Session 9-10):**
+**Key Finding:**
+The 1AM wallet's sync has a fatal server-side bug in the 1AM indexer:
+```
+Error: values inserted non-linearly into zswap commitment tree;
+  expected to insert index 17032, but received 17031.
+  at replayEventsWithChanges → applyUpdate
+```
+This is NOT fixable on our end. The 1AM indexer (api-preprod.1am.xyz) sends sync events out of order, and the Midnight ledger WASM rejects them. Even a brand new wallet with a different seed hits the same error at the same index. The 1AM wallet approach is DEAD.
 
-| Run | Heap | Start | Reached | % | Duration | Outcome |
-|---|---|---|---|---|---|---|
-| 1 | 4GB | 0 | 44,377 | 3.3% | ~9 min | OOM |
-| 2 | 10GB | 0 | 867,394 | 64% | ~61 min | OOM |
-| 3 | 10GB | 0 (fresh) | 995,261 | 73% | ~45 min | OOM (checkpoints saved) |
-| 4 | 10GB | 994,424 (restore) | shielded DONE, dust 52,765 | shielded 100%, dust 4% | ongoing | shielded + unshielded completed, dust grinding |
+### Current State
 
-### THE REMAINING BLOCKER: Dust Sync
-
-- Dust wallet must scan the full ~1,359,737-record chain. At ~8-21 records/sec (faster now that shielded is done), remaining ~1.3M records = many hours.
-- It IS checkpointed every 60s, so crashes/reboots just mean re-run and resume. No progress is lost beyond 60s.
-- Do NOT try to skip dust sync - DUST pays transaction fees for deploy, and the dust wallet must be synced to see/generated DUST from the 1000 tNight.
-- If dust pace is unacceptable, ask Midnight Discord whether dust sync can be fast-forwarded, but the checkpointed resume loop should get there on its own.
+- **Local wallet sync**: RESUMING from checkpoint at dust appliedIndex 190,866 (~14% of ~1.36M records).
+- Shielded sync: COMPLETE
+- Unshielded sync: COMPLETE
+- Dust sync: 14% (190,866 / ~1,359,000)
+- Estimated time to completion: ~20-22 hours at ~15-21 records/sec
+- The 1000 tNight faucet funding will be found once dust sync reaches the faucet tx block (~1,359,000 area).
+- persistence.ts path fixed (opalite-love → opalite).
 
 ### IMMEDIATE NEXT STEPS (Fresh Session)
 
-1. **Check if dust sync is still running or crashed:**
-   ```
-   ps aux | grep 'tsx src/preprod' | grep -v grep
-   tail -20 /tmp/sync-run4.log
-```
-
-2. **If crashed, resume (same command, same seed):**
-   ```
+1. **Check if sync completed:**
+```bash
    cd /Workspace/apecsdev/opalite/deploy-cli
-   nvm use 24
+   ls -la wallet-state.json
+   # Check the appliedIndex in the checkpoint
+   python3 -c "import json; d=json.load(open('wallet-state.json')); print(f\"Dust appliedIndex: {d.get('dustWalletState',{}).get('appliedIndex','?')}\")"
+   ```
+
+2. **If sync is still running:** Wait. Monitor with:
+```bash
+   watch -n 10 'ls -la /Workspace/apecsdev/opalite/deploy-cli/wallet-state.json'
+   top -d 2
+   ```
+
+3. **If sync completed (dust at 100%):**
+```bash
+   # Start proof server
+   cd /Workspace/apecsdev/opalite/deploy-cli
    docker compose -f proof-server.yml up -d
-   NODE_OPTIONS='--max-old-space-size=10240' npx tsx src/preprod.ts 2>&1 | tee /tmp/sync-run5.log
-   # option 2, paste seed: c99dc572d08a9797d83069d87e4eaa88234f4b70a7c20ba51f40d4bb91576d21
-```
-   Look for `[persistence] RESTORING wallet state saved at ...` and dust `appliedIndex` resuming high (not 0).
 
-3. **Repeat the resume loop until dust reports synced** (appliedIndex ~= highestRelevantWalletIndex). The CLI spinner will advance past 'Syncing with network' automatically.
+   # Verify proof server is running
+   curl -s http://localhost:6300/health || echo "Proof server not responding"
 
-4. **Once all three wallets are synced, the CLI proceeds. Follow the prompts:**
-   - Confirm 1000 tNight balance is visible (unshielded).
-   - Generate DUST from tNight (registerNightUtxosForDustGeneration / the CLI's DUST menu option).
-   - Deploy the age verification contract (CLI deploy option).
-   - Screenshot the contract address + deploy confirmation.
-   - Call verifyAge to prove the contract works.
-   - Screenshot the verifyAge result.
+   # Deploy the contract
+   npx tsx src/cli.ts deploy
 
-5. **After deployment:**
-   - Add the deployed contract address to README.md.
-   - Commit and push.
-   - Make the repo public on GitHub.
-   - Add Codecov integration.
-   - Submit to the hackathon with repo link + screenshots.
+   # Call verifyAge
+   npx tsx src/cli.ts call
+
+   # Screenshot the output
+   ```
+
+4. **After successful deploy:**
+    - Screenshot the deploy output (contract address, transaction hash)
+    - Screenshot the call output (verified count incremented)
+    - Make the repo public on GitHub
+    - Add Codecov
+    - Submit to hackathon
 
 ### Pickup Commands (Fresh Session Start)
 
-```
+```bash
 # Ensure Node 24
 nvm use 24
 cd /Workspace/apecsdev/opalite
 
+# Check sync progress
+cd deploy-cli
+ls -la wallet-state.json
+python3 -c "
+import json
+d = json.load(open('wallet-state.json'))
+dust = d.get('dustWalletState', {})
+print(f\"Dust appliedIndex: {dust.get('appliedIndex', '?')}\")
+print(f\"Dust highestRelevant: {dust.get('highestRelevantWalletIndex', '?')}\")
+"
+
+# Check if sync process is still running
+ps aux | grep "tsx.*cli" | grep -v grep
+
 # Check proof server
 docker ps --filter name=proof-server
-docker compose -f deploy-cli/proof-server.yml up -d
 
-# Check if sync is still running
-ps aux | grep 'tsx src/preprod' | grep -v grep
-tail -20 /tmp/sync-run4.log 2>/dev/null || tail -20 /tmp/sync-run5.log 2>/dev/null
-
-# Resume sync if needed (LET RUN FOR HOURS - do not Ctrl+C)
-cd deploy-cli
-NODE_OPTIONS='--max-old-space-size=10240' npx tsx src/preprod.ts 2>&1 | tee /tmp/sync-run5.log
-# option 2, paste seed: c99dc572d08a9797d83069d87e4eaa88234f4b70a7c20ba51f40d4bb91576d21
-
-# Check dust sync progress (another terminal)
-grep -o '"appliedIndex":"[0-9]*"' /tmp/sync-run5.log | tail -1
-
-# Check memory usage
-ps -o pid,rss,vsz,cmd -p $(pgrep -f 'tsx src/preprod') 2>/dev/null
-free -g | head -2
-
-# Verify faucet tx landed (indexer GraphQL)
-curl -s -X POST https://indexer.preprod.midnight.network/api/v4/graphql \
-  -H 'Content-Type: application/json' \
-  -d '{"query":"query($h:String!){transaction(hash:$h){hash blockHeight}}","variables":{"h":"00bc56d944ae087195f7cd2b6c3bde9efde21fdf0b770c8e8bd487a56213654fed"}}' \
-  | python3 -m json.tool
-
-# Escape hatch: force fresh sync (ignores wallet-state.json)
-# WALLET_FRESH=1 NODE_OPTIONS='--max-old-space-size=10240' npx tsx src/preprod.ts
+# If sync done, deploy:
+# docker compose -f proof-server.yml up -d
+# npx tsx src/cli.ts deploy
+# npx tsx src/cli.ts call
 ```
 
-### Funding Status
+### 1AM Wallet Investigation Details (FOR HISTORICAL REFERENCE)
 
-- 1000 tNight sent via Nethermind faucet (https://midnight-tmnight-preprod.nethermind.dev/) at 2026-07-31 ~06:15 EDT.
-- Transaction ID: 00bc56d944ae087195f7cd2b6c3bde9efde21fdf0b770c8e8bd487a56213654fed
-- Recipient: mn_addr_preprod1afy0u68xmt77wlneszepf7z2q97e40hzqyhy6kxwkqyslu9g0p7qskm7dw
-- Pending in-wallet confirmation once the CLI advances past the sync spinner (unshielded wallet is synced, so the balance will appear).
-- If the tx didn't land, re-request from the Nethermind faucet.
+The 1AM wallet was investigated as a way to deploy without syncing the local dust wallet. The ProofStation (api-preprod.1am.xyz) sponsors all transaction fees (zero dust, zero NIGHT). The approach was:
 
-### Files Modified in Session 10 (All Committed and Pushed)
+1. Connect 1AM wallet in browser:`window.midnight['1am'].connect('preprod')`
+2. Get shielded addresses:`connectedAPI.getShieldedAddresses()`
+3. Build providers (FetchZkConfigProvider, indexerPublicDataProvider, proofProvider, walletProvider, midnightProvider)
+4. Deploy via midnight-js-contracts:`deployContract(providers, options)`
 
-- `deploy-cli/package.json` - Added @midnight-ntwrk/wallet-sdk-abstractions@2.1.0
-- `deploy-cli/src/persistence.ts` - **NEW** Wallet state checkpoint/restore module
-- `deploy-cli/src/api.ts` - Persistence wired in (load/restore/checkpoint/txHistoryStorage)
-- `pnpm-lock.yaml` - Updated
-- `AGENTS.md` - Updated for Session 10
-- `docs/HANDOFF.md` - This file
-- `docs/PERSISTENCE.md` - Persistence discovery notes (reference)
+This approach FAILED because:
+-`getShieldedAddresses()` is gated behind sync completion
+- The 1AM wallet sync NEVER completes due to a server-side indexer bug
+- The bug: "values inserted non-linearly into zswap commitment tree; expected to insert index 17032, but received 17031"
+- This error is in the 1AM indexer (api-preprod.1am.xyz), not local state
+- Persists after full storage wipe + new wallet creation
+- The 1AM wallet approach is DEAD
 
-### Git Status
+The buildProviders code from the 1AM docs (for historical reference):
 
-- Branch: master
-- Remote: git@github.com:APECSdev/opalite-love.git
-- Status: All committed and pushed (20+ commits)
-- Working tree: clean (except gitignored wallet-state.json + /tmp logs)
+```javascript
+import { setNetworkId } from '@midnight-ntwrk/midnight-js-network-id';
+import { FetchZkConfigProvider } from '@midnight-ntwrk/midnight-js-fetch-zk-config-provider';
+import { indexerPublicDataProvider } from '@midnight-ntwrk/midnight-js-indexer-public-data-provider';
 
-### Compact Contract
+async function buildProviders(connectedAPI) {
+  const config = await connectedAPI.getConfiguration();
+  setNetworkId(config.networkId);
 
+  const zkConfigProvider = new FetchZkConfigProvider(
+    window.location.origin + '/contract/compiled/age_verification',
+    fetch.bind(window),
+  );
+
+  const publicDataProvider = indexerPublicDataProvider(
+    config.indexerUri, config.indexerWsUri,
+  );
+
+  const provingProvider = await connectedAPI.getProvingProvider(zkConfigProvider);
+  const proofProvider = {
+    async proveTx(unprovenTx) {
+      const { CostModel } = await import('@midnight-ntwrk/ledger-v8');
+      return unprovenTx.prove(provingProvider, CostModel.initialCostModel());
+    },
+  };
+
+  const { shieldedAddress } = await connectedAPI.getShieldedAddresses();
+  const walletProvider = {
+    getCoinPublicKey: () => shieldedAddress.shieldedCoinPublicKey,
+    getEncryptionPublicKey: () => shieldedAddress.shieldedEncryptionPublicKey,
+    async balanceTx(tx) {
+      const serialized = tx.serialize();
+      const hex = Array.from(serialized).map(b => b.toString(16).padStart(2, '0')).join('');
+      const result = await connectedAPI.balanceUnsealedTransaction(hex);
+      const { Transaction } = await import('@midnight-ntwrk/ledger-v8');
+      const bytes = new Uint8Array(result.tx.match(/.{2}/g).map(b => parseInt(b, 16)));
+      return Transaction.deserialize('signature', 'proof', 'binding', bytes);
+    },
+  };
+
+  const midnightProvider = {
+    async submitTx(tx) {
+      const serialized = tx.serialize();
+      const hex = Array.from(serialized).map(b => b.toString(16).padStart(2, '0')).join('');
+      await connectedAPI.submitTransaction(hex);
+      return tx.identifiers()[0];
+    },
+  };
+
+  return { publicDataProvider, zkConfigProvider, proofProvider, walletProvider, midnightProvider };
+}
 ```
+
+### Compact Contract (UNCHANGED)
+
+```compact
 pragma language_version >= 0.20;
 import CompactStandardLibrary;
 export ledger verifiedCount: Counter;
@@ -165,34 +220,23 @@ export circuit verifyAge(): [] {
 }
 ```
 
-### Network Endpoints
+### Files Modified in Session 12 (All Committed)
 
-```
-Preprod:
-  indexer: https://indexer.preprod.midnight.network/api/v3/graphql  (v4 also works)
-  indexerWS: wss://indexer.preprod.midnight.network/api/v3/graphql/ws
-  node: https://rpc.preprod.midnight.network
-  proofServer: http://127.0.0.1:6300
-  faucet (official): https://faucet.preprod.midnight.network/
-  faucet (Nethermind, RECOMMENDED): https://midnight-tmnight-preprod.nethermind.dev/
-```
+-`packages/web/src/pages/contracts.astro` — Fixed FetchZkConfigProvider URL + retry loop + Check sync button (NOW UNUSED but kept for reference)
+-`deploy-cli/src/persistence.ts` — Fixed path (opalite-love → opalite)
+-`AGENTS.md` -- Updated for Session 12
+-`docs/HANDOFF.md` -- This file
 
-### Dependency Versions (deploy-cli/package.json)
+### Git Status
 
-```
-@midnight-ntwrk/compact-js: 2.5.1
-@midnight-ntwrk/compact-runtime: 0.16.0
-@midnight-ntwrk/ledger-v8: 8.1.0
-@midnight-ntwrk/midnight-js: 4.1.1
-@midnight-ntwrk/wallet-sdk-facade: 4.0.1
-@midnight-ntwrk/wallet-sdk-shielded: 3.0.1
-@midnight-ntwrk/wallet-sdk-unshielded-wallet: 3.1.0
-@midnight-ntwrk/wallet-sdk-dust-wallet: 4.1.0
-@midnight-ntwrk/wallet-sdk-hd: 3.0.2
-@midnight-ntwrk/wallet-sdk-address-format: 3.1.2
-@midnight-ntwrk/wallet-sdk-abstractions: 2.1.0
-proof-server: midnightntwrk/proof-server:8.0.3
-tsx: 4.23.1
-Node.js: v24.18.1
-pnpm: 10.7.0
-```
+- Branch: master
+- Remote: git@github.com:APECSdev/opalite.git
+- Status: All committed and pushed
+- Working tree: clean (pending AGENTS/HANDOFF commit)
+
+### Key Unknowns
+
+1. **Will the local dust sync complete successfully?** It was at 14% when killed. Resuming from checkpoint. Should work — persistence is proven.
+2. **Will the 1000 tNight faucet funding be found?** The faucet tx was sent to our address. The dust wallet will find it once sync reaches that block.
+3. **How long will the remaining sync take?** ~20-22 hours at ~15-21 records/sec for ~1.17M remaining records (1,359,000 - 190,866).
+4. **Will the proof server work for deploy?** Docker proof-server:8.0.3 on port 6300. Should work — it was set up in earlier sessions.
