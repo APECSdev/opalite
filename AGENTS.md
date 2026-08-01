@@ -127,8 +127,8 @@ points against package.json scripts before documenting commands.
 - **Local dir:** /Workspace/apecsdev/opalite
 - **Domain:** opalite.social (registered, canonical). Legacy: opalite.love.
 - **Hackathon:** Rise In - New Moon to Full: Monthly Moonshots on Midnight
-- **Current Level:** Level 1 - New Moon. Contract written/compiled/tested (3 tests pass). Deploying via LOCAL CLI (1AM wallet approach FAILED — see issue 47). Local wallet sync resuming (dust at 14%).
-- **DEADLINE:** Level 1 submission delayed due to sync time. Will submit when dust sync completes.
+- **Current Level:** Level 1 - New Moon. Contract DEPLOYED to preprod. 2 age verifications confirmed on-chain. Ready for hackathon submission.
+- **DEADLINE:** Level 1 submission IN PROGRESS. Contract deployed + verified. Remaining: screenshots, repo public, Codecov, final commit.
 
 ## Solved Issues (DO NOT RE-DIAGNOSE)
 1. Terminal Paste Munging: Use`python3 << 'PYEOF'` to write files. Heredocs get corrupted by terminal paste.
@@ -155,7 +155,7 @@ points against package.json scripts before documenting commands.
 22. midnightDbName: LevelDB named 'opalite-preprod-wallet' in config.ts.
 23. levelPrivateStateProvider: Persists contract private state + signing keys, NOT sync state.
 24. Sync OOM Pattern: 4GB→OOM at 3.3%, 10GB→OOM at 64-73%. Memory is transient sync garbage.
-25. README Updated: Badges, banner, setup guide. Narrative rebrand pending.
+25. README Updated: Full rebrand complete (Opalite Love -> Opalite, social network narrative, badges, clone URLs). cli.ts BANNER updated.
 26. Faucet Official: https://faucet.preprod.midnight.network/ - intermittent errors.
 27. Faucet Nethermind (USE THIS): https://midnight-tmnight-preprod.nethermind.dev/ - reliable. Delivered 1000 tNight.
 28. PERSISTENCE IMPLEMENTED AND PROVEN:`deploy-cli/src/persistence.ts` uses serializeState()/restore(). Checkpoints every 60s. WALLET_FRESH=1 escape hatch. PROVEN across runs.
@@ -164,7 +164,7 @@ points against package.json scripts before documenting commands.
 31. Chain is Live: highestRelevantWalletIndex grows ~5-10 records/min.
 32. Dust Wallet Slow Sync: ~15-21 records/sec. Must scan full ~1.36M chain. Checkpointed, survives crashes.
 33. SIGINT Handler Swallowed: clack spinner intercepts SIGINT. Persistence MUST be periodic, not on-exit.
-34. REBRAND (2026-07-31): Opalite Love → Opalite. Repo renamed. Domain opalite.social. Tagline "Your social life, shielded."
+34. REBRAND (2026-07-31): Opalite Love → Opalite. Repo renamed. Domain opalite.social. Tagline "Your social life, shielded." README + cli.ts BANNER rebranded (Session 13).
 35. Indexer has NO direct tx-by-hash lookup: transactions query uses offset pagination.
 36. 1AM WALLET CONCEPT: The 1AM wallet (Chrome extension) + ProofStation sponsors ALL transaction fees. Zero dust, zero NIGHT required.`balanceUnsealedTransaction(hex)` routes to ProofStation. SEEMED like the path to deploy without syncing local dust wallet. HOWEVER — SEE ISSUE 47.
 37. midnight-agent-skills installed: 5 skills in`skills/` (gitignored). midnight-sdk-guide has 1AM wallet integration info.
@@ -180,8 +180,9 @@ points against package.json scripts before documenting commands.
 47. **1AM WALLET SYNC FAILED — SERVER-SIDE INDEXER BUG**: The 1AM wallet's sync has a fatal error: "values inserted non-linearly into zswap commitment tree; expected to insert index 17032, but received 17031." This error occurs in`replayEventsWithChanges → applyUpdate` in the Midnight ledger WASM. It persists even after: (a) clearing ALL extension storage (IndexedDB, LocalStorage, Service Worker, Cache, Extension State), (b) killing Chromium, (c) creating a BRAND NEW wallet with a different seed. The error is in the 1AM INDEXER (api-preprod.1am.xyz) sending events out of order, NOT in local state. The wallet gets stuck at 99% in an infinite error loop. **1AM WALLET APPROACH ABANDONED.** The 1AM wallet window.midnight['1am'].connect('preprod') DOES connect successfully, getConfiguration() DOES return correct preprod endpoints, but getShieldedAddresses() is gated behind sync completion, and sync NEVER completes due to the server-side bug.
 48. **build.1am.xyz IS A NO-GO**: It's just an AI prompt tool ("Write Compact contracts, generate frontends, compile and deploy - all with AI"). Requires Google sign-in (unacceptable). Cannot deploy custom pre-compiled contracts. Only generates from templates/prompt. Templates: Counter, Token, voting, Escrow, DAO, Privacy mixer. Not suitable for our use case.
 49. **zkmint.1am.xyz NOT SUITABLE**: A meme coin launchpad + Night-ID (.night names) registrar. Not a general-purpose contract deployer. Source at github.com/webisoftSoftware/zk-mint could be studied for 1AM integration patterns but is NOT needed since we pivoted to local CLI.
-50. **PIVOTED BACK TO LOCAL DEPLOY CLI**: The local wallet (deploy-cli) has shielded + unshielded sync COMPLETE. Only dust sync is at 14% (appliedIndex 190,866, checkpointed). Resuming sync to complete dust, then deploy via local CLI + Docker proof server. This is the ONLY viable path. Sync takes ~20-22 hours at ~15-21 records/sec for ~1.36M records. The 1000 tNight faucet funding will be found once dust sync reaches the faucet tx block.
+50. **LOCAL DEPLOY CLI — SUCCESS**: Dust sync completed. Contract deployed to preprod via local CLI + Docker proof server. Contract address: 7842c12a360192c4505a002cf54a26904d7791589244a8161fb22d34c40a4199. Two age verifications confirmed on-chain (blocks 1917094, 1917099). Verified count: 2.
 
+51. **DEPLOYMENT COMPLETE (Session 13)**: Contract deployed to preprod. Address: 7842c12a360192c4505a002cf54a26904d7791589244a8161fb22d34c40a4199. Two verifyAge() calls confirmed on-chain (blocks 1917094, 1917099). Verified count: 2. Proof server (Docker, port 6300) used for deploy + call. README + cli.ts rebranded (Opalite Love -> Opalite).
 ## Tech Stack
 - Node.js v24.18.1 LTS (nvm, .nvmrc=24)
 - TypeScript runner: tsx v4.23.1
@@ -213,22 +214,26 @@ points against package.json scripts before documenting commands.
 - package.json — Self-contained deps (wallet SDK 4.x, midnight-js 4.1.1, tsx)
 - src/config.ts, src/common-types.ts, src/logger-utils.ts, src/persistence.ts, src/api.ts, src/cli.ts
 - proof-server.yml — Docker compose for proof server
-- wallet-state.json — gitignored persisted wallet state (DO NOT COMMIT, DO NOT DELETE). Last checkpoint: dust appliedIndex 190,866.
+- wallet-state.json — gitignored persisted wallet state (DO NOT COMMIT, DO NOT DELETE). Sync COMPLETE. Contains deployed contract private state.
 
 ### Root Files
 - .secrets (gitignored, chmod 600) — Wallet seeds
 - .nvmrc -- Node 24
 - package.json -- Monorepo (name still "opalite-love", cosmetic)
 - .gitignore -- includes`skills/`
-- README.md -- Enhanced (narrative rebrand pending)
+- README.md -- Full rebrand complete (Opalite, social network)
 - AGENTS.md, docs/HANDOFF.md -- Session context
 - skills/ -- midnight-agent-skills (gitignored, 5 skills, reference only)
 
 ## Wallet Info
 - Preprod seed: c99dc572d08a9797d83069d87e4eaa88234f4b70a7c20ba51f40d4bb91576d21
 - Preprod address: mn_addr_preprod1afy0u68xmt77wlneszepf7z2q97e40hzqyhy6kxwkqyslu9g0p7qskm7dw
-- Funding: 1000 tNight sent via Nethermind faucet (tx 00bc56d9...654fed). Will be found when dust sync reaches that block.
-- Local sync status: shielded DONE, unshielded DONE, dust at appliedIndex 190,866 (~14%). RESUMING.
+- Funding: 1000 tNight sent via Nethermind faucet (tx 00bc56d9...654fed). Found and used for deployment.
+- **CONTRACT DEPLOYED:** Address 7842c12a360192c4505a002cf54a26904d7791589244a8161fb22d34c40a4199
+- **Verify tx 1:** 003b2f9fd149154f3e555607df20c0482c7ecf4140d29ea0ad3951749218c7e231 (block 1917094)
+- **Verify tx 2:** 00806c785a67a6ff79251a9f48c655d99c513ebebe1154a8bde5266d2ac2e6c763 (block 1917099)
+- **Verified count:** 2
+- Local sync status: ALL COMPLETE (shielded, unshielded, dust). Contract deployed + 2 verifications.
 - 1AM wallet: ABANDONED (server-side indexer bug — see issue 47)
 - Faucet (Nethermind): https://midnight-tmnight-preprod.nethermind.dev/
 

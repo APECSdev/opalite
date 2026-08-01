@@ -1,17 +1,17 @@
 <div align="center">
 
-<img src="packages/web/public/favicon.png" width="64" alt="Opalite Love" />
+<img src="packages/web/public/favicon.png" width="64" alt="Opalite" />
 
-# 🌙 Opalite — Private Dating on Midnight Network
+# 🌙 Opalite — Privacy-First Social on Midnight Network
 
-[![codecov](https://codecov.io/gh/APECSdev/opalite-love/branch/master/graph/badge.svg)](https://codecov.io/gh/APECSdev/opalite-love)
+[![codecov](https://codecov.io/gh/APECSdev/opalite/branch/master/graph/badge.svg)](https://codecov.io/gh/APECSdev/opalite)
 ![Node.js](https://img.shields.io/badge/Node.js-24_LTS-339933?logo=node.js&logoColor=white)
 ![pnpm](https://img.shields.io/badge/pnpm-10.7.0-F69220?logo=pnpm&logoColor=white)
 ![Midnight](https://img.shields.io/badge/Midnight-preprod-6B4FBA)
-![License](https://img.shields.io/github/license/APECSdev/opalite-love)
-![GitHub last commit](https://img.shields.io/github/last-commit/APECSdev/opalite-love)
+![License](https://img.shields.io/github/license/APECSdev/opalite)
+![GitHub last commit](https://img.shields.io/github/last-commit/APECSdev/opalite)
 
-**Swipe right, reveal later.**
+**Connect freely, reveal selectively.**
 
 Real connections. True privacy.
 
@@ -19,9 +19,9 @@ Real connections. True privacy.
 
 ---
 
-We're building Opalite: a dating experience that feels like Tinder, but where your privacy is the default — not an afterthought.
+We're building Opalite: a social platform that feels familiar, but where your privacy is the default — not an afterthought.
 
-Swipe. Match. Chat. But here's the difference: your profile never touches a public database, your matches are sealed until mutual interest is confirmed, and only you decide what to reveal.
+Post. Connect. Chat. But here's the difference: your profile never touches a public database, your connections are sealed until mutual interest is confirmed, and only you decide what to reveal.
 
 ---
 
@@ -29,12 +29,12 @@ Swipe. Match. Chat. But here's the difference: your profile never touches a publ
 
 - **Create a DID.** You register a Decentralized Identifier on the Midnight ledger — your digital presence, cryptographically yours, with zero personal data exposed on-chain.
 - **Your profile stays off-chain.** Your photos, bio, and preferences are stored as a private commitment. Only a cryptographic hash ever hits the public network. No plaintext profiles. No data leaks.
-- **Mutual match unlocks the connection.** When two people swipe right on each other, a zero-knowledge proof verifies the match — confirming mutual interest without broadcasting who liked whom to the entire network. Profiles unlock, and a private chat is assigned.
+- **Mutual connection unlocks the chat.** When two people connect, a zero-knowledge proof verifies the connection — confirming mutual interest without broadcasting who connected with whom to the entire network. Profiles unlock, and a private chat is assigned.
 - **Chat freely.** End-to-end encrypted conversations tied to your DID. No server-side message storage. No ad network tracking.
 
 ## Why Midnight
 
-Midnight's Compact smart contracts and selective disclosure let us build what traditional dating apps can't: a platform where real connections happen without turning your love life into a data commodity. Prove you're a real person without surrendering your identity. Prove you're compatible without exposing your life story.
+Midnight's Compact smart contracts and selective disclosure let us build what traditional social platforms can't: a network where real connections happen without turning your social life into a data commodity. Prove you're a real person without surrendering your identity. Prove you're authentic without exposing your life story.
 
 ## Tech Stack
 
@@ -49,17 +49,17 @@ Midnight's Compact smart contracts and selective disclosure let us build what tr
 
 | Directory | Description |
 |---|---|
-| `packages/contracts/` | Midnight Compact smart contracts (age verification) |
-| `packages/web/` | Astro + Tailwind website and whitepaper |
-| `deploy-cli/` | Custom deployment CLI for Midnight preprod |
-| `docs/` | Handoff documents and session notes |
+|`packages/contracts/`| Midnight Compact smart contracts (age verification) |
+|`packages/web/`| Astro + Tailwind website and whitepaper |
+|`deploy-cli/`| Custom deployment CLI for Midnight preprod |
+|`docs/`| Handoff documents and session notes |
 
 ## Age Verification Contract
 
 Our first contract implements privacy-preserving age verification on Midnight:
 
-- **Ledger state:** `verifiedCount` (Counter) — tracks total verifications
-- **Circuit:** `verifyAge()` — increments the counter via a zero-knowledge proof
+- **Ledger state:**`verifiedCount` (Counter) — tracks total verifications
+- **Circuit:**`verifyAge()` — increments the counter via a zero-knowledge proof
 - **Private state:** Shielded — the count is visible but individual verifications are not
 
 ```bash
@@ -74,8 +74,8 @@ pnpm test
 
 ```bash
 # Clone and install
-git clone https://github.com/APECSdev/opalite-love.git
-cd opalite-love
+git clone https://github.com/APECSdev/opalite.git
+cd opalite
 nvm use 24
 pnpm install
 

@@ -11,8 +11,8 @@ let logger: Logger;
 
 const BANNER = `
 ======================================================================
-              Opalite Love - Age Verification Contract
-              Privacy-Preserving Dating on Midnight Network
+              Opalite - Age Verification Contract
+              Privacy-Preserving Social on Midnight Network
 ======================================================================`;
 
 const DIVIDER = '----------------------------------------------------------------------';
