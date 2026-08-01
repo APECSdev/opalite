@@ -70,6 +70,15 @@ compact compile src/age_verification.compact src/managed/age_verification
 pnpm test
 ```
 
+
+## Proof of Deployment
+
+### Compile + Tests (3 tests passing, rebranded banner)
+![Compile and tests](docs/screenshots/compile-and-tests.png)
+
+### Deployed Contract on Midnight Preprod
+![Deploy output](docs/screenshots/deploy.png)
+
 ## Getting Started
 
 ```bash
