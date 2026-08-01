@@ -26,7 +26,7 @@ We are back to the original plan: sync the local dust wallet to completion, then
 | Wallet created | DONE (seed in .secrets) |
 | Proof server running | DONE (Docker, for deploy) |
 | Wallet funded | DONE - 1000 tNight via Nethermind faucet (pending in-wallet confirmation) |
-| Wallet syncs with network | IN PROGRESS - shielded+unshielded DONE, dust at 14% (resuming) |
+| Wallet syncs with network | IN PROGRESS - dust 11.89% (162,017/1,362,858), ~36 blocks/sec, ETA ~9.3h |
 | Contract deployed | NOT DONE -- waiting for dust sync |
 | Deploy screenshot | NOT DONE |
 | Repo made public | NOT DONE -- after deployment |
@@ -58,30 +58,58 @@ This is NOT fixable on our end. The 1AM indexer (api-preprod.1am.xyz) sends sync
 
 ### Current State
 
-- **Local wallet sync**: RESUMING from checkpoint at dust appliedIndex 190,866 (~14% of ~1.36M records).
+- **Local wallet sync**: RUNNING from checkpoint — monitored via /tmp/opalite-sync.log (tee capture). Monitor VERIFIED working in Session 12.
 - Shielded sync: COMPLETE
 - Unshielded sync: COMPLETE
-- Dust sync: 14% (190,866 / ~1,359,000)
-- Estimated time to completion: ~20-22 hours at ~15-21 records/sec
+- Dust sync: 11.89% (162,017 / 1,362,858) — total grows slowly as new blocks are produced
+- Estimated time to completion: ~9.3 hours at observed ~36 blocks/sec (faster than old 15-21/sec estimate)
 - The 1000 tNight faucet funding will be found once dust sync reaches the faucet tx block (~1,359,000 area).
 - persistence.ts path fixed (opalite-love → opalite).
 
 ### IMMEDIATE NEXT STEPS (Fresh Session)
 
-1. **Check if sync completed:**
-```bash
-   cd /Workspace/apecsdev/opalite/deploy-cli
-   ls -la wallet-state.json
-   # Check the appliedIndex in the checkpoint
-   python3 -c "import json; d=json.load(open('wallet-state.json')); print(f\"Dust appliedIndex: {d.get('dustWalletState',{}).get('appliedIndex','?')}\")"
-   ```
+1. **Check sync progress (WORKING method — parses captured sync log, NOT wallet-state.json):**
 
-2. **If sync is still running:** Wait. Monitor with:
-```bash
-   watch -n 10 'ls -la /Workspace/apecsdev/opalite/deploy-cli/wallet-state.json'
-   top -d 2
-   ```
+   wallet-state.json does NOT expose appliedIndex in any findable form (top-level keys
+   are version/savedAt/shielded/unshielded/dust; dust is stringified JSON with unknown
+   internal structure — recursive key search finds nothing). Reliable source = Terminal 1
+   stdout captured via tee:
 
+       grep -o 'dust {"appliedIndex":"[0-9]*","highestRelevantWalletIndex":"[0-9]*"' /tmp/opalite-sync.log | tail -1
+
+2. **If sync is still running:** Wait. Full monitor dashboard (VERIFIED WORKING — blocks, remaining, rate, ETA):
+
+       PREV_A=0
+       while true; do
+         clear
+         echo "=== $(date) ==="
+         LINE=$(grep -o 'dust {"appliedIndex":"[0-9]*","highestRelevantWalletIndex":"[0-9]*"' /tmp/opalite-sync.log | tail -1)
+         A=$(echo "$LINE" | grep -oP '"appliedIndex":"\K[0-9]+')
+         T=$(echo "$LINE" | grep -oP '"highestRelevantWalletIndex":"\K[0-9]+')
+         if [ -n "$A" ] && [ -n "$T" ]; then
+           REMAIN=$((T - A))
+           PCT=$(awk "BEGIN{printf \"%.2f\", $A/$T*100}")
+           if [ "$PREV_A" -gt 0 ] && [ "$A" -gt "$PREV_A" ]; then
+             RATE=$(( (A - PREV_A) / 10 ))
+             [ "$RATE" -gt 0 ] && echo "Rate: ~${RATE} blocks/sec | ETA: ~$(awk "BEGIN{printf \"%.1f\", $REMAIN/$RATE/3600}") hours"
+           fi
+           PREV_A=$A
+           echo "Blocks indexed:  $A"
+           echo "Total blocks:    $T"
+           echo "Remaining:       $REMAIN"
+           echo "Progress: ${PCT}%"
+         else
+           echo "No sync lines in log yet."
+         fi
+         ps aux | grep 'tsx.*preprod' | grep -v grep > /dev/null && echo "Status: RUNNING" || echo "Status: *** NOT RUNNING ***"
+         sleep 10
+       done
+
+   If /tmp/opalite-sync.log is missing (e.g. /tmp cleared on reboot), restart Terminal 1
+   with tee (checkpoint = no progress lost):
+
+       cd /Workspace/apecsdev/opalite/deploy-cli
+       NODE_OPTIONS="--max-old-space-size=10240" npx tsx src/preprod.ts 2>&1 | tee /tmp/opalite-sync.log
 3. **If sync completed (dust at 100%):**
 ```bash
    # Start proof server
@@ -114,19 +142,11 @@ This is NOT fixable on our end. The 1AM indexer (api-preprod.1am.xyz) sends sync
 nvm use 24
 cd /Workspace/apecsdev/opalite
 
-# Check sync progress
-cd deploy-cli
-ls -la wallet-state.json
-python3 -c "
-import json
-d = json.load(open('wallet-state.json'))
-dust = d.get('dustWalletState', {})
-print(f\"Dust appliedIndex: {dust.get('appliedIndex', '?')}\")
-print(f\"Dust highestRelevant: {dust.get('highestRelevantWalletIndex', '?')}\")
-"
+# Check sync progress (parses captured sync log — parsing wallet-state.json does NOT work)
+grep -o 'dust {"appliedIndex":"[0-9]*","highestRelevantWalletIndex":"[0-9]*"' /tmp/opalite-sync.log | tail -1
 
 # Check if sync process is still running
-ps aux | grep "tsx.*cli" | grep -v grep
+ps aux | grep 'tsx.*preprod' | grep -v grep
 
 # Check proof server
 docker ps --filter name=proof-server
@@ -236,7 +256,7 @@ export circuit verifyAge(): [] {
 
 ### Key Unknowns
 
-1. **Will the local dust sync complete successfully?** It was at 14% when killed. Resuming from checkpoint. Should work — persistence is proven.
+1. **Will the local dust sync complete successfully?** Resumed from checkpoint, progressing steadily at ~36 blocks/sec. Persistence and monitoring both proven.
 2. **Will the 1000 tNight faucet funding be found?** The faucet tx was sent to our address. The dust wallet will find it once sync reaches that block.
-3. **How long will the remaining sync take?** ~20-22 hours at ~15-21 records/sec for ~1.17M remaining records (1,359,000 - 190,866).
+3. **How long will the remaining sync take?** ~9.3 hours at observed ~36 blocks/sec for ~1.2M remaining records (1,362,858 - 162,017). Total grows slowly as new blocks are produced.
 4. **Will the proof server work for deploy?** Docker proof-server:8.0.3 on port 6300. Should work — it was set up in earlier sessions.
