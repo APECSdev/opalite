@@ -4,6 +4,77 @@
 **ON EVERY NEW SESSION, READ`docs/HANDOFF.md` FIRST.**
 **DO NOT ASK WHAT WE WERE DOING. DO NOT RE-DIAGNOSE SOLVED PROBLEMS.**
 
+
+## CRITICAL CLI DOCUMENTATION (Session 12 post-mortem)
+
+### How to start the deploy CLI (INTERACTIVE — no subcommands)
+
+The CLI is a MENU-based interactive program, NOT a subcommand CLI.
+There is NO`sync` command. Sync happens automatically after wallet restore.
+
+**Start command:**
+```bash
+cd /Workspace/apecsdev/opalite/deploy-cli
+npx tsx src/preprod.ts # OR: pnpm preprod
+```
+
+**Menu flow to resume sync:**
+1. Choose`[2] Restore wallet from seed`
+2. Paste seed: c99dc572d08a9797d83069d87e4eaa88234f4b70a7c20ba51f40d4bb91576d21
+3. Sync resumes automatically from`wallet-state.json` checkpoint
+
+**Wallet menu options:**
+- [1] Create a new wallet  (DO NOT USE — would discard sync progress)
+- [2] Restore wallet from seed  (USE THIS — loads checkpoint, resumes sync)
+- [3] Exit
+
+**Contract menu (after sync completes):**
+- [1] Deploy a new age verification contract
+- [2] Join an existing age verification contract
+- [3] Monitor DUST balance
+- [4] Exit
+
+**Age verification menu (after deploy):**
+- [1] Verify age (increment counter)
+- [2] Display current verified count
+- [3] Exit
+
+### How to monitor sync (Terminal 2)
+
+The`wallet-state.json` structure is NOT reliably documented (top-level keys
+unknown —`dustWalletState` key returned None in session 12). Use file
+size/mtime growth as the sync-progress indicator instead:
+
+```bash
+watch -n 10 'ls -la /Workspace/apecsdev/opalite/deploy-cli/wallet-state.json && stat -c "mtime: %y" /Workspace/apecsdev/opalite/deploy-cli/wallet-state.json'
+```
+
+Checkpoint saves every 60s while sync is running. If mtime/size grows, sync
+is progressing.
+
+### npm scripts (deploy-cli/package.json)
+
+-`preprod`  ->`tsx src/preprod.ts`  (preprod network entry point)
+-`preview`  ->`tsx src/preview.ts` (preview network entry point)
+
+### Key files (deploy-cli/src/)
+
+-`preprod.ts`        — entry point, calls cli.run()
+-`preview.ts`        — preview entry point
+-`cli.ts`            — interactive menu (exports run())
+-`api.ts`            — wallet build, sync, deploy, call logic
+-`persistence.ts`    — serializeState()/restore() for wallet checkpoints
+-`config.ts`         — network endpoints, midnightDbName
+-`common-types.ts`   — type definitions
+-`logger-utils.ts`   — pino logger setup
+
+### Lesson learned
+
+The previous AGENTS/HANDOFF said "npx tsx src/cli.ts sync" — that was WRONG.
+`cli.ts` only exports`run()`; it has no subcommands. The actual entry point
+is`preprod.ts` which calls`cli.run(config, logger)`. Always verify entry
+points against package.json scripts before documenting commands.
+
 ## Project Overview
 - **Project:** Opalite - Privacy-First Social Network on Midnight
 - **Tagline:** Your social life, shielded.
